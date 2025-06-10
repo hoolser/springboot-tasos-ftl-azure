@@ -17,4 +17,10 @@ public class HomeController {
         model.addAttribute("message", messageService.getMessage());
         return "home";
     }
+
+    @GetMapping("/marina")
+    public String marina(Model model) {
+        model.addAttribute("message", messageService.getMessageForMarina());
+        return "marina";
+    }
 }

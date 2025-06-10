@@ -1,0 +1,48 @@
+.centered-message {
+    text-align: center;
+}
+
+.centered-image {
+    display: block;
+    margin: 0 auto;
+    width: 400px; /* You can adjust this specific width */
+    height: auto; /* Maintains aspect ratio */
+    border-radius: 5px; /* Optional: adds rounded corners */
+}
+
+.heart-button-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.heart-button {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    transition: transform 0.3s;
+    padding: 10px 20px;
+}
+
+.heart-button:hover {
+    transform: scale(1.2);
+}
+
+.heart {
+    position: fixed;
+    font-size: 1.5rem;
+    pointer-events: none;
+    animation: float-up 1.5s forwards;
+    z-index: 100;
+}
+
+@keyframes float-up {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-100px) scale(1.5);
+    }
+}
