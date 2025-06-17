@@ -26,9 +26,9 @@ public class HomeController {
 
     @GetMapping("/marina")
     public String marina(Model model) {
-        logger.debug("Start HomeController.marina");
+        logger.info("Start HomeController.marina");
         model.addAttribute("message", messageService.getMessageForMarina());
-        logger.debug("End HomeController.marina");
+        logger.info("End HomeController.marina");
         return "marina";
     }
 }
