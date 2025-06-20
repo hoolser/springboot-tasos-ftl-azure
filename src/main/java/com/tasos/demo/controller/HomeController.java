@@ -18,9 +18,9 @@ public class HomeController {
 
     @GetMapping("/")
     public String home(Model model) {
-        logger.info("Start HomeController.home");
+        logger.debug("Start HomeController.home");
         model.addAttribute("message", messageService.getMessage());
-        logger.info("End HomeController.home");
+        logger.debug("End HomeController.home");
         return "home";
     }
 
