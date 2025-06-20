@@ -26,8 +26,10 @@
         </encoder>
     </appender>
 
-    <appender name="AZURE_BLOB" class="com.tasos.demo.config.AzureBlobAppender">
-        <connectionString>${AZURE_STORAGE_CONNECTION_STRING}</connectionString>
+    <springProperty scope="context" name="azureStorageConnectionString" source="azure.storage.connection.string"/>
+
+    <appender name="AZURE_BLOB" class="com.tasos.demo.logging.AzureBlobAppender">
+        <connectionString>${azureStorageConnectionString}</connectionString>
         <containerName>tasos-application-logs</containerName>
         <blobNamePattern>tasosApp-%d{yyyy-MM-dd}.log</blobNamePattern>
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
