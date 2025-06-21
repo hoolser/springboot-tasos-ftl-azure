@@ -51,7 +51,10 @@ public class StorageBlobsController {
         if (!name.matches("^[a-z0-9]+(-[a-z0-9]+)*$")) {
             return "Invalid container name format. It must be lowercase alphanumeric and can contain hyphens.";
         }
-        return "listed Containers: "+ storageBlobsService.createUniqueContainer(name);
+        if (!(name.equals("test") || name.equals("tasos"))) {
+            return "Container name should be \"test\" or \"tasos\" (in order to prevent exessive number of new containers).";
+        }
+        return "New created container: "+ storageBlobsService.createUniqueContainer(name);
     }
 
     @GetMapping("/uploadTestFile")
@@ -117,6 +120,9 @@ public class StorageBlobsController {
         logger.info("Deleting container: {}", name);
         if (name == null || name.isEmpty()) {
             return "Container name cannot be null or empty.";
+        }
+        if (!(name.equals("test") || name.equals("tasos"))) {
+            return "Container name should be \"test\" or \"tasos\" (in order to prevent deletion of other containers).";
         }
         String result = storageBlobsService.deleteContainer(name);
         return (result != null ? ("Container deleted: "+ result) : ("Container "+ name+" does not exist."));

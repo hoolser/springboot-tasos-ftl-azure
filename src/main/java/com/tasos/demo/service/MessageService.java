@@ -6,6 +6,10 @@ import org.springframework.stereotype.Service;
 public class MessageService {
 
     public String getMessage() {
+        return "Hello from the Home service!";
+    }
+
+    public String getMessageForTasos() {
         return "Hello from the Tasos Rodopoli service!";
     }
 

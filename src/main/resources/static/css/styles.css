@@ -1,3 +1,4 @@
+/* Marina's page specific styles */
 .centered-message {
     text-align: center;
 }
@@ -46,3 +47,73 @@
         transform: translateY(-100px) scale(1.5);
     }
 }
+/* End of Marina's page specific styles */
+
+
+
+/* Home's page specific styles */
+.home-page {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.home-container {
+    border: 1px solid #ddd;
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+.home-form-group {
+    margin-bottom: 15px;
+}
+
+.home-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.home-input {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.home-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.home-button {
+    padding: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.home-button:hover {
+    background-color: #45a049;
+}
+
+.home-response {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f8f8;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-height: 100px;
+}
+
+.home-title {
+    margin-top: 0;
+}
+/*END of Home's page specific styles */

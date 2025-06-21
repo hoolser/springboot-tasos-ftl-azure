@@ -31,4 +31,13 @@ public class HomeController {
         logger.info("End HomeController.marina");
         return "marina";
     }
+
+    @GetMapping("/tasos")
+    public String tasos(Model model) {
+        logger.info("Start HomeController.tasos");
+        model.addAttribute("message", messageService.getMessageForTasos());
+        logger.info("End HomeController.tasos");
+        return "home";
+    }
+
 }

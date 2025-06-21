@@ -3,6 +3,7 @@
 <head>
   <title>Marina Page</title>
   <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" type="image/x-icon" href="/images/marina-favicon.ico">
 </head>
 <body>
 <img class="centered-image" src="/images/marina.jpeg" alt="Marina Image">
