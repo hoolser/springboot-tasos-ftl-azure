@@ -1,8 +1,5 @@
 package com.tasos.demo.controller;
 
-import com.azure.identity.DefaultAzureCredentialBuilder;
-import com.azure.security.keyvault.secrets.SecretClient;
-import com.azure.security.keyvault.secrets.SecretClientBuilder;
 import com.tasos.demo.service.MessageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,16 +38,6 @@ public class HomeController {
         model.addAttribute("message", messageService.getMessageForTasos());
         logger.info("End HomeController.tasos");
         return "home";
-    }
-
-    @GetMapping("/test-secret")
-    public String getSecret() {
-        SecretClient client = new SecretClientBuilder()
-                .vaultUrl("https://.vault.azure.net/")
-                .credential(new DefaultAzureCredentialBuilder().build())
-                .buildClient();
-
-        return client.getSecret("azure-storage-connection-string").getValue();
     }
 
 }
