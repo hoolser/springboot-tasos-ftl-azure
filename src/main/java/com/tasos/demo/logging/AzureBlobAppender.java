@@ -7,8 +7,6 @@ import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -24,7 +22,6 @@ public class AzureBlobAppender extends AppenderBase<ILoggingEvent> {
     private Layout<ILoggingEvent> layout;
     private BlobContainerClient containerClient;
     private ByteArrayOutputStream logBuffer = new ByteArrayOutputStream();
-    private static final Logger logger = LoggerFactory.getLogger(AzureBlobAppender.class);
 
     public void setConnectionString(String connectionString) {
         this.connectionString = connectionString;
@@ -50,7 +47,6 @@ public class AzureBlobAppender extends AppenderBase<ILoggingEvent> {
         }
 
         try {
-            logger.info("connectionString: "+connectionString);
             BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
                     .connectionString(connectionString)
                     .buildClient();
