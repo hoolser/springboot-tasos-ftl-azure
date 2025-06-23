@@ -40,4 +40,12 @@ public class HomeController {
         return "home";
     }
 
+    @GetMapping("/storage-blob-page")
+    public String storageBlob(Model model) {
+        logger.info("Start HomeController.storage-blob");
+        model.addAttribute("message", messageService.getMessage());
+        logger.info("End HomeController.storage-blob");
+        return "storage-blob";
+    }
+
 }
