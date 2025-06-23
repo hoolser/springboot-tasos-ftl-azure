@@ -13,6 +13,10 @@ public class MessageService {
         return "Hello from the Tasos Rodopoli service!";
     }
 
+    public String getMessageForBlob() {
+        return "Hello from the Blob Storage service!";
+    }
+
     public String getMessageForMarina() {
         return "Se agapw polu Mwro mou!";
     }

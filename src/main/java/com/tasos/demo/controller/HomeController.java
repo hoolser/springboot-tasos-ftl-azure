@@ -43,7 +43,7 @@ public class HomeController {
     @GetMapping("/storage-blob-page")
     public String storageBlob(Model model) {
         logger.info("Start HomeController.storage-blob");
-        model.addAttribute("message", messageService.getMessage());
+        model.addAttribute("message", messageService.getMessageForBlob());
         logger.info("End HomeController.storage-blob");
         return "storage-blob";
     }
