@@ -23,7 +23,6 @@ These instructions will help you build, run, and deploy the application.
 
 Clone the repository:
 
-```bash
 git clone https://github.com/hoolser/springboot-tasos-ftl-azure.git
 cd springboot-tasos-ftl-azure
 
