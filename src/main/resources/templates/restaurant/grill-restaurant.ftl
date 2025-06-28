@@ -4,17 +4,18 @@
 <head>
   <title>Grill Restaurant</title>
   <link rel="stylesheet" href="/css/grill-restaurant.css">
-  <link rel="icon" type="image/x-icon" href="/images/grill-favicon.png">
+  <link rel="stylesheet" href="/css/lang.css">
+  <link rel="icon" type="image/x-icon" href="/images/grill/grill-favicon.png">
 </head>
 <body class="grill-bg">
-<img src="/images/to-steki-banner.png" alt="Grill Restaurant Banner" class="grill-hero">
+<img src="/images/grill/to-steki-banner.png" alt="Grill Restaurant Banner" class="grill-hero">
 <div class="centered-message">
   <div style="text-align: left; margin-bottom: 20px;">
 
     <!-- Language Selector -->
-    <div class="language-selector" style="float: right;">
-      <a href="/changeLanguage?lang=en"><img src="/images/flag-en.png" alt="English" title="English" width="24"></a>
-      <a href="/changeLanguage?lang=el"><img src="/images/flag-el.png" alt="Ελληνικά" title="Ελληνικά" width="24"></a>
+    <div class="language-selector">
+      <a href="/changeLanguage?lang=en">EN English</a>
+      <a href="/changeLanguage?lang=el">EL Ελληνικά</a>
     </div>
     <div style="clear: both;"></div>
   </div>

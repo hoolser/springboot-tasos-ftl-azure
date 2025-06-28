@@ -1,0 +1,24 @@
+/* Language Selector Styles */
+
+.language-selector {
+    float: right;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 6px 14px;
+    box-shadow: 0 2px 6px rgba(80, 30, 0, 0.07);
+    margin-left: 16px;
+}
+
+.language-selector a {
+    color: #7a4a1a;
+    text-decoration: none;
+    margin: 0 8px;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.language-selector a:hover {
+    color: #b86b2b;
+    text-decoration: underline;
+}
