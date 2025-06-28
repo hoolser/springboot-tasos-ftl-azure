@@ -48,4 +48,12 @@ public class HomeController {
         return "storage-blob";
     }
 
+    @GetMapping("/share-blob-page")
+    public String shareBlob(Model model) {
+        logger.info("Start HomeController.shareBlob");
+        model.addAttribute("message", messageService.getMessageForShareBlob());
+        logger.info("End HomeController.shareBlob");
+        return "share-file-blob";
+    }
+
 }

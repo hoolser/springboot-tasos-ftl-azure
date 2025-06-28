@@ -9,9 +9,12 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -31,6 +34,9 @@ public class StorageBlobsController {
     private static final Logger logger = LoggerFactory.getLogger(StorageBlobsController.class);
 
     private final StorageBlobsService storageBlobsService;
+
+    private static final String SHARE_CONTAINER = "tasos-shared-container";
+
 
     @GetMapping("/test")
     public String test() {
@@ -126,6 +132,34 @@ public class StorageBlobsController {
         }
         String result = storageBlobsService.deleteContainer(name);
         return (result != null ? ("Container deleted: "+ result) : ("Container "+ name+" does not exist."));
+    }
+
+
+    // Upload file endpoint
+    @PostMapping("/share/upload")
+    public String uploadFileToShareContainer(@RequestPart("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return "No file selected.";
+        }
+        return storageBlobsService.uploadFileToContainer(SHARE_CONTAINER, file);
+    }
+
+    // Download file endpoint
+    @GetMapping("/share/download")
+    public ResponseEntity<byte[]> downloadFileFromShareContainer(@RequestParam String fileName) {
+        byte[] data = storageBlobsService.downloadFileFromContainer(SHARE_CONTAINER, fileName);
+        if (data == null) {
+            return ResponseEntity.notFound().build();
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.setContentDispositionFormData("attachment", fileName);
+        return ResponseEntity.ok().headers(headers).body(data);
+    }
+
+    @PostMapping("/share/clear")
+    public String clearShareContainer() {
+        return storageBlobsService.clearContainer(SHARE_CONTAINER);
     }
 
 }

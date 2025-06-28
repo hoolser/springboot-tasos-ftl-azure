@@ -1,5 +1,7 @@
 package com.tasos.demo.service;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.List;
 
 public interface StorageBlobsService {
@@ -17,4 +19,11 @@ public interface StorageBlobsService {
     List<byte[]> downloadBlobsFromContainer(String containerName);
 
     String deleteContainer(String containerName);
+
+    String uploadFileToContainer(String container, MultipartFile file);
+
+    byte[] downloadFileFromContainer(String container, String fileName);
+
+    String clearContainer(String container);
+
 }

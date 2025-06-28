@@ -17,6 +17,10 @@ public class MessageService {
         return "Hello from the Blob Storage service!";
     }
 
+    public String getMessageForShareBlob() {
+        return "Hello from the Share Blob Storage service!";
+    }
+
     public String getMessageForMarina() {
         return "Se agapw polu Mwro mou!";
     }
