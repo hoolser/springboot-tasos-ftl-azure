@@ -87,8 +87,6 @@ src
 
 DemoApplication.java: Spring Boot main class.
 
-DemoController.java: REST controller serving Freemarker views.
-
 templates: Freemarker templates rendered by the controller.
 
 
