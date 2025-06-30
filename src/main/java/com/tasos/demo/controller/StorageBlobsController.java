@@ -82,6 +82,12 @@ public class StorageBlobsController {
         return (fileNames!=null ? ("Files in container: "+ fileNames) : ("Container "+ name+" does not exist."));
     }
 
+    @GetMapping("/listFilesOfShared")
+    public String listFilesOfShared() {
+        List<String> fileNames = storageBlobsService.listFilesInContainer(SHARE_CONTAINER);
+        return (fileNames!=null ? ("Files in container: "+ fileNames) : ("Container "+ SHARE_CONTAINER+" does not exist."));
+    }
+
     @GetMapping("/downloadBlobs")
     public ResponseEntity<byte[]> downloadBlobs(@RequestParam(required = false) String name) {
         logger.info("Downloading blobs from container: {}", name);
