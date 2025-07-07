@@ -299,12 +299,12 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
                         propertiesStr.append("    ").append(key).append(": ").append(value).append("\n"));
 
                 // Check for specific metadata keys we're interested in
-                String docType = properties.getMetadata().getOrDefault("docType", "Not set");
+                /*String docType = properties.getMetadata().getOrDefault("docType", "Not set");
                 String category = properties.getMetadata().getOrDefault("category", "Not set");
 
                 propertiesStr.append("\n  Important Metadata Values:\n");
                 propertiesStr.append("    Document Type: ").append(docType).append("\n");
-                propertiesStr.append("    Category: ").append(category).append("\n");
+                propertiesStr.append("    Category: ").append(category).append("\n");*/
             } else {
                 propertiesStr.append("    No metadata found. Use addContainerMetadata() to add metadata.\n");
             }
