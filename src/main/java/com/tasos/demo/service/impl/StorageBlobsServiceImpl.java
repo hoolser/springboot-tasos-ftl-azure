@@ -5,6 +5,7 @@ import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.azure.storage.blob.models.BlobContainerItem;
 import com.tasos.demo.service.StorageBlobsService;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +24,16 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
     @Value("${azure-storage-connection-string}")
     private String storageConnectionString;
 
+    private BlobServiceClient blobServiceClient;
+
+    @PostConstruct
+    public void initialize() {
+        blobServiceClient = new BlobServiceClientBuilder()
+                .connectionString(storageConnectionString)
+                .buildClient();
+        logger.info("BlobServiceClient initialized");
+    }
+
     @Override
     public boolean test() {
         return true;
@@ -33,9 +44,6 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
         List<String> containerNames = new ArrayList<>();
 
         try {
-            BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-                    .connectionString(storageConnectionString)
-                    .buildClient();
 
             for (BlobContainerItem containerItem : blobServiceClient.listBlobContainers()) {
                 String name = containerItem.getName();
@@ -53,9 +61,6 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
     @Override
     public String createUniqueContainer(String containerName) {
         try {
-            BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-                    .connectionString(storageConnectionString)
-                    .buildClient();
 
             // Create the container
             BlobContainerClient containerClient = blobServiceClient
@@ -75,9 +80,6 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
     @Override
     public String uploadTestFileToContainer(String containerName) {
         try {
-            BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-                    .connectionString(storageConnectionString)
-                    .buildClient();
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
 
@@ -105,9 +107,6 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
     public List<String> listFilesInContainer(String containerName) {
         List<String> blobNames = new ArrayList<>();
         try {
-            BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-                    .connectionString(storageConnectionString)
-                    .buildClient();
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
 
@@ -131,9 +130,6 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
     public List<byte[]> downloadBlobsFromContainer(String containerName) {
         List<byte[]> filesData = new ArrayList<>();
         try {
-            BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-                    .connectionString(storageConnectionString)
-                    .buildClient();
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
 
@@ -163,9 +159,6 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
     @Override
     public String deleteContainer(String containerName) {
         try {
-            BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-                    .connectionString(storageConnectionString)
-                    .buildClient();
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
 
@@ -189,9 +182,6 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
         final long MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 
         try {
-            BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-                    .connectionString(storageConnectionString)
-                    .buildClient();
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(container);
 
@@ -229,9 +219,6 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
 
     public byte[] downloadFileFromContainer(String container, String fileName) {
         try {
-            BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-                    .connectionString(storageConnectionString)
-                    .buildClient();
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(container);
 
@@ -257,9 +244,6 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
 
     public String clearContainer(String container) {
         try {
-            BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-                    .connectionString(storageConnectionString)
-                    .buildClient();
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(container);
 
             if (!containerClient.exists()) {
