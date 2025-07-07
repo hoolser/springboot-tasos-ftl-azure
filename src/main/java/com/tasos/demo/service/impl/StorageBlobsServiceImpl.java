@@ -4,6 +4,7 @@ import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.azure.storage.blob.models.BlobContainerItem;
+import com.azure.storage.blob.models.BlobContainerProperties;
 import com.tasos.demo.service.StorageBlobsService;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -14,7 +15,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class StorageBlobsServiceImpl implements StorageBlobsService {
@@ -260,6 +263,85 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
             return deleted + " file(s) deleted from container.";
         } catch (Exception e) {
             logger.error("Failed to clear container", e);
+            return e.getMessage();
+        }
+    }
+
+
+    @Override
+    public String readContainerProperties(String containerName) {
+        try {
+            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+
+            if (!containerClient.exists()) {
+                logger.error("Container '{}' does not exist.", containerName);
+                return "Container does not exist";
+            }
+
+            BlobContainerProperties properties = containerClient.getProperties();
+
+            // Create a formatted string with all relevant properties
+            StringBuilder propertiesStr = new StringBuilder();
+            propertiesStr.append("Container Properties:\n");
+            propertiesStr.append("  ETag: ").append(properties.getETag()).append("\n");
+            propertiesStr.append("  Last Modified: ").append(properties.getLastModified()).append("\n");
+            propertiesStr.append("  Lease Status: ").append(properties.getLeaseStatus()).append("\n");
+            propertiesStr.append("  Lease State: ").append(properties.getLeaseState()).append("\n");
+            propertiesStr.append("  Lease Duration: ").append(properties.getLeaseDuration()).append("\n");
+            propertiesStr.append("  Public Access: ").append(properties.getBlobPublicAccess()).append("\n");
+            propertiesStr.append("  Has Immutability Policy: ").append(properties.hasImmutabilityPolicy()).append("\n");
+            propertiesStr.append("  Has Legal Hold: ").append(properties.hasLegalHold()).append("\n");
+
+            // Include metadata with clear formatting
+            propertiesStr.append("  Metadata:\n");
+            if (properties.getMetadata() != null && !properties.getMetadata().isEmpty()) {
+                properties.getMetadata().forEach((key, value) ->
+                        propertiesStr.append("    ").append(key).append(": ").append(value).append("\n"));
+
+                // Check for specific metadata keys we're interested in
+                String docType = properties.getMetadata().getOrDefault("docType", "Not set");
+                String category = properties.getMetadata().getOrDefault("category", "Not set");
+
+                propertiesStr.append("\n  Important Metadata Values:\n");
+                propertiesStr.append("    Document Type: ").append(docType).append("\n");
+                propertiesStr.append("    Category: ").append(category).append("\n");
+            } else {
+                propertiesStr.append("    No metadata found. Use addContainerMetadata() to add metadata.\n");
+            }
+
+            logger.info("Retrieved properties for container '{}'", containerName);
+            return propertiesStr.toString();
+
+        } catch (Exception e) {
+            logger.error("Failed to retrieve container properties", e);
+            return "Error retrieving container properties: " + e.getMessage();
+        }
+    }
+
+    @Override
+    public String addContainerMetadata(String containerName) {
+        try {
+            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+
+            if (!containerClient.exists()) {
+                logger.error("Container '{}' does not exist.", containerName);
+                return "Container does not exist";
+            }
+
+            // Create a map to hold the metadata
+            Map<String, String> metadata = new HashMap<>();
+
+            // Add metadata to the container
+            metadata.put("docType", "textDocuments");
+            metadata.put("category", "guidance");
+
+            // Set the container's metadata
+            containerClient.setMetadata(metadata);
+
+            logger.info("Metadata added to container '{}'.", containerName);
+            return "Metadata added successfully to container";
+        } catch (Exception e) {
+            logger.error("Failed to add metadata to container", e);
             return e.getMessage();
         }
     }

@@ -168,4 +168,25 @@ public class StorageBlobsController {
         return storageBlobsService.clearContainer(SHARE_CONTAINER);
     }
 
+    @GetMapping("/readContainerProperties")
+    public String readContainerProperties(@RequestParam(required = false) String name) {
+        logger.info("Read Container Properties from container: {}", name);
+        if (name == null || name.isEmpty()) {
+            return "Container name cannot be null or empty.";
+        }
+        String properties = storageBlobsService.readContainerProperties(name);
+        return "properties of container: "+ properties;
+    }
+
+    @GetMapping("/addContainerMetadata")
+    public String addContainerMetadata(@RequestParam(required = false) String name) {
+        logger.info("Add Container Properties for container: {}", name);
+        if (name == null || name.isEmpty()) {
+            return "Container name cannot be null or empty.";
+        }
+        String strResponse = storageBlobsService.addContainerMetadata(name);
+        return "response: "+ strResponse;
+    }
+
+
 }

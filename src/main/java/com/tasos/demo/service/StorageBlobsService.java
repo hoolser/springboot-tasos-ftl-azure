@@ -26,4 +26,8 @@ public interface StorageBlobsService {
 
     String clearContainer(String container);
 
+    String readContainerProperties(String containerName);
+
+    String addContainerMetadata(String containerName);
+
 }
