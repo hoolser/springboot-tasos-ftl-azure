@@ -3,7 +3,7 @@
 <head>
   <title>Storage Blobs Management</title>
   <link rel="stylesheet" href="/css/styles.css">
-  <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <script src="/js/storage-blob.js"></script>
 </head>
 <body class="storage-page">

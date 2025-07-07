@@ -3,7 +3,7 @@
 <head>
     <title>Spring Boot FreeMarker Landing Page</title>
     <link rel="stylesheet" href="/css/styles.css">
-    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
 </head>
 <body>
 <div class="centered-message">
