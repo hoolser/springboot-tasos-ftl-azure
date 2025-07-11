@@ -29,10 +29,10 @@ public class AzureCosmosDbServiceImpl implements AzureCosmosDbService {
 
     private static final Logger logger = LoggerFactory.getLogger(AzureCosmosDbServiceImpl.class);
 
-    @Value("${azure.cosmos.endpoint}")
+    @Value("${azure.cosmos.endpoint:}")
     private String cosmosDbEndpoint;
 
-    @Value("${azure.cosmos.key}")
+    @Value("${azure.cosmos.key:}")
     private String cosmosDbKey;
 
     @Value("${azure.cosmos.database:myDatabase}")
