@@ -29,19 +29,19 @@ public class AzureCosmosDbServiceImpl implements AzureCosmosDbService {
 
     private static final Logger logger = LoggerFactory.getLogger(AzureCosmosDbServiceImpl.class);
 
-    @Value("${azure.cosmos.endpoint:}")
+    @Value("${azure-cosmos-endpoint:}")
     private String cosmosDbEndpoint;
 
-    @Value("${azure.cosmos.key:}")
+    @Value("${azure-cosmos-key:}")
     private String cosmosDbKey;
 
-    @Value("${azure.cosmos.database:myDatabase}")
+    @Value("${azure-cosmos-database:myDatabase}")
     private String databaseName;
 
-    @Value("${azure.cosmos.container:myContainer}")
+    @Value("${azure-cosmos-container:myContainer}")
     private String containerName;
 
-    @Value("${azure.cosmos.connection.enabled:false}")
+    @Value("${azure-cosmos-connection-enabled:false}")
     private boolean connectionEnabled;
 
     private CosmosClient cosmosClient;

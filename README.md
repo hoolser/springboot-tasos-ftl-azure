@@ -75,7 +75,7 @@ This app requires Azure Cosmos DB credentials:
     - In App Service Configuration: Add application settings for each variable above.
     - In Azure Key Vault: Store secrets and configure your app to access them securely.
 
-> ⚠️ Without these configurations, Cosmos DB functionality will not work. also will need to set true the value of `azure.cosmos.connection.enabled` in azure vault, or at application-prod.properties to true.
+> ⚠️ Without these configurations, Cosmos DB functionality will not work. also will need to set true the value of `azure-cosmos-connection-enabled` in azure vault, or at application-prod.properties to true.
 
 #### File Upload Limits
 
