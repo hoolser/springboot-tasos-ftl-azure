@@ -31,10 +31,32 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
 
     @PostConstruct
     public void initialize() {
-        blobServiceClient = new BlobServiceClientBuilder()
-                .connectionString(storageConnectionString)
-                .buildClient();
-        logger.info("BlobServiceClient initialized");
+        try {
+            if (storageConnectionString == null || storageConnectionString.isBlank()) {
+                logger.warn("Azure Storage connection string is missing or blank. Blob operations will be disabled.");
+                return;
+            }
+            boolean looksLikeConn = storageConnectionString.contains("AccountName=") && storageConnectionString.contains("AccountKey=");
+            if (!looksLikeConn) {
+                logger.warn("Azure Storage connection string format appears invalid. Blob operations will be disabled.");
+                return;
+            }
+            blobServiceClient = new BlobServiceClientBuilder()
+                    .connectionString(storageConnectionString)
+                    .buildClient();
+            logger.info("BlobServiceClient initialized");
+        } catch (Exception ex) {
+            logger.warn("Failed to initialize BlobServiceClient. Blob operations disabled. Reason: {}", ex.getMessage());
+            blobServiceClient = null;
+        }
+    }
+
+    private boolean isClientReady() {
+        if (blobServiceClient == null) {
+            logger.warn("Azure Blob Service client is not initialized. Ensure a valid 'azure-storage-connection-string' is configured.");
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -45,6 +67,9 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
     @Override
     public List<String> listContainers() {
         List<String> containerNames = new ArrayList<>();
+        if (!isClientReady()) {
+            return containerNames;
+        }
 
         try {
 
@@ -63,6 +88,9 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
 
     @Override
     public String createUniqueContainer(String containerName) {
+        if (!isClientReady()) {
+            return "Azure Blob Storage is not configured.";
+        }
         try {
 
             // Create the container
@@ -82,6 +110,9 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
 
     @Override
     public String uploadTestFileToContainer(String containerName) {
+        if (!isClientReady()) {
+            return "Azure Blob Storage is not configured.";
+        }
         try {
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
@@ -109,6 +140,9 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
     @Override
     public List<String> listFilesInContainer(String containerName) {
         List<String> blobNames = new ArrayList<>();
+        if (!isClientReady()) {
+            return blobNames;
+        }
         try {
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
@@ -132,6 +166,9 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
     @Override
     public List<byte[]> downloadBlobsFromContainer(String containerName) {
         List<byte[]> filesData = new ArrayList<>();
+        if (!isClientReady()) {
+            return filesData;
+        }
         try {
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
@@ -161,6 +198,9 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
 
     @Override
     public String deleteContainer(String containerName) {
+        if (!isClientReady()) {
+            return "Azure Blob Storage is not configured.";
+        }
         try {
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
@@ -183,6 +223,10 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
     public String uploadFileToContainer(String container, MultipartFile file) {
         final long MAX_TOTAL_SIZE_MB = 100; // upload limitation in size.
         final long MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
+
+        if (!isClientReady()) {
+            return "Azure Blob Storage is not configured.";
+        }
 
         try {
 
@@ -221,6 +265,9 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
     }
 
     public byte[] downloadFileFromContainer(String container, String fileName) {
+        if (!isClientReady()) {
+            return new byte[0];
+        }
         try {
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(container);
@@ -246,6 +293,9 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
     }
 
     public String clearContainer(String container) {
+        if (!isClientReady()) {
+            return "Azure Blob Storage is not configured.";
+        }
         try {
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(container);
 
@@ -270,6 +320,9 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
 
     @Override
     public String readContainerProperties(String containerName) {
+        if (!isClientReady()) {
+            return "Azure Blob Storage is not configured.";
+        }
         try {
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
 
@@ -320,6 +373,9 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
 
     @Override
     public String addContainerMetadata(String containerName) {
+        if (!isClientReady()) {
+            return "Azure Blob Storage is not configured.";
+        }
         try {
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
 

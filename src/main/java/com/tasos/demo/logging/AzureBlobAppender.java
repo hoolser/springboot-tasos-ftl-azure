@@ -41,8 +41,15 @@ public class AzureBlobAppender extends AppenderBase<ILoggingEvent> {
 
     @Override
     public void start() {
-        if (connectionString == null || containerName == null || blobNamePattern == null || layout == null) {
-            addError("Missing required properties for AzureBlobAppender");
+        if (connectionString == null || connectionString.isBlank() || containerName == null || containerName.isBlank() || blobNamePattern == null || layout == null) {
+            addWarn("AzureBlobAppender disabled: missing or blank required properties.");
+            return;
+        }
+
+        // Basic validation to avoid obvious invalid connection strings causing startup failure
+        boolean looksLikeConn = connectionString.contains("AccountName=") && connectionString.contains("AccountKey=");
+        if (!looksLikeConn) {
+            addWarn("AzureBlobAppender disabled: connection string format appears invalid (missing AccountName/AccountKey).");
             return;
         }
 
@@ -58,7 +65,8 @@ public class AzureBlobAppender extends AppenderBase<ILoggingEvent> {
 
             super.start();
         } catch (Exception e) {
-            addError("Failed to initialize Azure Blob Storage", e);
+            // Do not fail app startup due to logging misconfiguration
+            addWarn("AzureBlobAppender disabled: Failed to initialize Azure Blob Storage. " + e.getMessage());
         }
     }
 

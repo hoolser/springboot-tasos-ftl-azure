@@ -29,27 +29,39 @@
     <springProperty scope="context" name="azureStorageConnectionString" source="azure-storage-connection-string"/>
     <springProperty scope="context" name="azureStorageContainerName" source="azure-storage-container-name"/>
 
-    <appender name="AZURE_BLOB" class="com.tasos.demo.logging.AzureBlobAppender">
-        <connectionString>${azureStorageConnectionString}</connectionString>
-        <containerName>${azureStorageContainerName}</containerName>
-        <blobNamePattern>tasosApp-%d{yyyy-MM-dd}.log</blobNamePattern>
-        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>INFO</level>
-        </filter>
-        <layout class="ch.qos.logback.classic.PatternLayout">
-            <pattern>${LOG_PATTERN}</pattern>
-        </layout>
-    </appender>
+    <if condition='isDefined("azureStorageConnectionString") &amp;&amp; isDefined("azureStorageContainerName")'>
+        <then>
+            <appender name="AZURE_BLOB" class="com.tasos.demo.logging.AzureBlobAppender">
+                <connectionString>${azureStorageConnectionString}</connectionString>
+                <containerName>${azureStorageContainerName}</containerName>
+                <blobNamePattern>tasosApp-%d{yyyy-MM-dd}.log</blobNamePattern>
+                <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+                    <level>INFO</level>
+                </filter>
+                <layout class="ch.qos.logback.classic.PatternLayout">
+                    <pattern>${LOG_PATTERN}</pattern>
+                </layout>
+            </appender>
+        </then>
+    </if>
 
     <logger name="com.tasos.demo" level="DEBUG" additivity="false">
         <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="AZURE_BLOB"/>
+        <if condition='isDefined("azureStorageConnectionString") &amp;&amp; isDefined("azureStorageContainerName")'>
+            <then>
+                <appender-ref ref="AZURE_BLOB"/>
+            </then>
+        </if>
         <appender-ref ref="FILE"/>
     </logger>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="AZURE_BLOB"/>
+        <if condition='isDefined("azureStorageConnectionString") &amp;&amp; isDefined("azureStorageContainerName")'>
+            <then>
+                <appender-ref ref="AZURE_BLOB"/>
+            </then>
+        </if>
         <appender-ref ref="FILE"/>
     </root>
 </configuration>
