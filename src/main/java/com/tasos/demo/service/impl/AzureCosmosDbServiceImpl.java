@@ -57,7 +57,8 @@ public class AzureCosmosDbServiceImpl implements AzureCosmosDbService {
             CosmosClientBuilder builder = new CosmosClientBuilder()
                     .endpoint(cosmosDbEndpoint);
 
-            if (cosmosDbKey != null && !cosmosDbKey.isBlank()) {
+            logger.info("cosmosDbKey='{}', endpoint='{}'", cosmosDbKey, cosmosDbEndpoint);
+            if (cosmosDbKey != null && !cosmosDbKey.isBlank() && !"null".equalsIgnoreCase(cosmosDbKey.trim())) {
                 // Use key-based authentication
                 builder.key(cosmosDbKey);
                 logger.info("Using key-based authentication for Cosmos DB");
