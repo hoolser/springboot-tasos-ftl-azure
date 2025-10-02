@@ -10,6 +10,7 @@ import com.azure.cosmos.models.CosmosDatabaseResponse;
 import com.azure.cosmos.models.CosmosItemResponse;
 import com.azure.cosmos.models.CosmosQueryRequestOptions;
 import com.azure.cosmos.models.PartitionKey;
+import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.tasos.demo.model.Product;
 import com.tasos.demo.service.AzureCosmosDbService;
 import org.slf4j.Logger;
@@ -50,16 +51,25 @@ public class AzureCosmosDbServiceImpl implements AzureCosmosDbService {
 
     @PostConstruct
     public void initialize() {
-        if(connectionEnabled){
+        if (connectionEnabled) {
             logger.info("Initializing Cosmos DB client");
-            this.cosmosClient = new CosmosClientBuilder()
-                    .endpoint(cosmosDbEndpoint)
-                    .key(cosmosDbKey)
-                    .buildClient();
+
+            CosmosClientBuilder builder = new CosmosClientBuilder()
+                    .endpoint(cosmosDbEndpoint);
+
+            if (cosmosDbKey != null && !cosmosDbKey.isBlank()) {
+                // Use key-based authentication
+                builder.key(cosmosDbKey);
+                logger.info("Using key-based authentication for Cosmos DB");
+            } else {
+                // Use Managed Identity (Azure AD)
+                builder.credential(new DefaultAzureCredentialBuilder().build());
+                logger.info("Using Azure AD Managed Identity for Cosmos DB");
+            }
+
+            this.cosmosClient = builder.buildClient();
         }
-
     }
-
     @Override
     public String connectAndCreateSampleProduct(String productName) {
         try {
