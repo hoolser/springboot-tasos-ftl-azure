@@ -54,23 +54,23 @@ public class AzureCosmosDbServiceImpl implements AzureCosmosDbService {
         if (connectionEnabled) {
             logger.info("Initializing Cosmos DB client");
 
+            logger.info("cosmosDbKey='{}', endpoint='{}'", cosmosDbKey, cosmosDbEndpoint);
             CosmosClientBuilder builder = new CosmosClientBuilder()
                     .endpoint(cosmosDbEndpoint);
 
-            logger.info("cosmosDbKey='{}', endpoint='{}'", cosmosDbKey, cosmosDbEndpoint);
-            if (cosmosDbKey != null && !cosmosDbKey.isBlank() && !"null".equalsIgnoreCase(cosmosDbKey.trim())) {
-                // Use key-based authentication
+            // If key is empty/null, use Managed Identity
+            if (cosmosDbKey != null && !cosmosDbKey.isEmpty() && !cosmosDbKey.equalsIgnoreCase("null")) {
                 builder.key(cosmosDbKey);
                 logger.info("Using key-based authentication for Cosmos DB");
             } else {
-                // Use Managed Identity (Azure AD)
+                logger.info("No key provided, using Azure Managed Identity authentication");
                 builder.credential(new DefaultAzureCredentialBuilder().build());
-                logger.info("Using Azure AD Managed Identity for Cosmos DB");
             }
 
             this.cosmosClient = builder.buildClient();
         }
     }
+
     @Override
     public String connectAndCreateSampleProduct(String productName) {
         try {
