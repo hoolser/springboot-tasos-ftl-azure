@@ -29,6 +29,7 @@
     <springProperty scope="context" name="azureStorageConnectionString" source="azure-storage-connection-string"/>
     <springProperty scope="context" name="azureStorageContainerName" source="azure-storage-container-name"/>
 
+    <!-- Define AZURE_BLOB appender only when both properties are present -->
     <if condition='isDefined("azureStorageConnectionString") &amp;&amp; isDefined("azureStorageContainerName")'>
         <then>
             <appender name="AZURE_BLOB" class="com.tasos.demo.logging.AzureBlobAppender">
@@ -45,23 +46,31 @@
         </then>
     </if>
 
+    <!-- Base loggers without conditional references (to satisfy Logback 1.4 restrictions) -->
     <logger name="com.tasos.demo" level="DEBUG" additivity="false">
         <appender-ref ref="CONSOLE"/>
-        <if condition='isDefined("azureStorageConnectionString") &amp;&amp; isDefined("azureStorageContainerName")'>
-            <then>
-                <appender-ref ref="AZURE_BLOB"/>
-            </then>
-        </if>
         <appender-ref ref="FILE"/>
     </logger>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
-        <if condition='isDefined("azureStorageConnectionString") &amp;&amp; isDefined("azureStorageContainerName")'>
-            <then>
-                <appender-ref ref="AZURE_BLOB"/>
-            </then>
-        </if>
         <appender-ref ref="FILE"/>
     </root>
+
+    <!-- If Azure properties exist, redefine logger and root to include AZURE_BLOB -->
+    <if condition='isDefined("azureStorageConnectionString") &amp;&amp; isDefined("azureStorageContainerName")'>
+        <then>
+            <logger name="com.tasos.demo" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+                <appender-ref ref="AZURE_BLOB"/>
+                <appender-ref ref="FILE"/>
+            </logger>
+
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+                <appender-ref ref="AZURE_BLOB"/>
+                <appender-ref ref="FILE"/>
+            </root>
+        </then>
+    </if>
 </configuration>
