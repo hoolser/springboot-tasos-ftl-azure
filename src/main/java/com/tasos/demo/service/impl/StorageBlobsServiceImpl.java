@@ -24,7 +24,7 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
 
     private static final Logger logger = LoggerFactory.getLogger(StorageBlobsServiceImpl.class);
 
-    @Value("${azure-storage-connection-string}")
+    @Value("${azure-storage-connection-string:}")
     private String storageConnectionString;
 
     private BlobServiceClient blobServiceClient;
