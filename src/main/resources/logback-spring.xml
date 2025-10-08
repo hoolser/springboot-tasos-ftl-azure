@@ -28,9 +28,10 @@
 
     <springProperty scope="context" name="azureStorageConnectionString" source="azure-storage-connection-string"/>
     <springProperty scope="context" name="azureStorageContainerName" source="azure-storage-container-name"/>
+    <springProperty scope="context" name="azureBlobLoggingEnabled" source="azure-blob-logging-enabled"/>
 
-    <!-- Define AZURE_BLOB appender only when both properties are present -->
-    <if condition='isDefined("azureStorageConnectionString") &amp;&amp; isDefined("azureStorageContainerName")'>
+    <!-- Define AZURE_BLOB appender only when both properties are present and the azure-blob-logging-enabled flag is enabled-->
+    <if condition='isDefined("azureStorageConnectionString") &amp;&amp; isDefined("azureStorageContainerName") &amp;&amp; "${azureBlobLoggingEnabled}" == "true"'>
         <then>
             <appender name="AZURE_BLOB" class="com.tasos.demo.logging.AzureBlobAppender">
                 <connectionString>${azureStorageConnectionString}</connectionString>
