@@ -1,5 +1,5 @@
-# Stage 1: Build the application with Maven 3.9.9 and Java 21
-FROM maven:3.9.9-eclipse-temurin-21 AS build
+# Stage 1: Build the application with Maven 3.9.10 and Java 21
+FROM maven:3.9.10-eclipse-temurin-21 AS build
 
 # Set working directory inside container
 WORKDIR /app
