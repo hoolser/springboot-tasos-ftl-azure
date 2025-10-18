@@ -172,6 +172,26 @@ src
 - `templates`: Freemarker templates rendered by the controller
 ```
 
+### ☁️ Deploy to Azure Container Instances
+
+Prerequisites:
+- Make sure the images are pushed to your Azure Container Registry:
+    - `tasos77registry.azurecr.io/mysql-image:latest`
+    - `tasos77registry.azurecr.io/springboot-tasos-ftl-azure:latest`
+- Ensure the ACR admin user is enabled (Portal: your registry → Access keys → Admin user: On) or provide valid registry credentials in `imageRegistryCredentials` inside `application-deployment.yml`.
+
+Steps:
+1. Open the Azure Portal and launch **Cloud Shell**. Upload `application-deployment.yml` to the Cloud Shell environment (Cloud Shell → Upload).
+   2. Run the deployment command:
+   ```markdown
+   > az container create --resource-group {yourGroupName} --file application-deployment.yml 
+    ```
+   (replace `{yourGroupName}` with your resource group):
+
+Notes:
+- Confirm the resource group exists and you have permissions to create container instances.
+- If you store image registry credentials in the YAML, replace the placeholder password with a secure value or use a service principal/managed identity instead of enabling ACR admin if preferred.
+
 
 ## 🤝 Contributing
 
