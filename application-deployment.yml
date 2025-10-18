@@ -1,0 +1,37 @@
+apiVersion: 2025-09-01
+location: westeurope
+name: tasosContainerGroup
+properties:
+  containers:
+    - name: sqlinstance
+      properties:
+        image: tasos77registry.azurecr.io/mysql-image:latest
+        ports:
+          - port: 3306
+            protocol: TCP
+        resources:
+          requests:
+            cpu: 1
+            memoryInGb: 1.5
+    - name: springboot-tasos-ftl-azure
+      properties:
+        image: tasos77registry.azurecr.io/springboot-tasos-ftl-azure:latest
+        ports:
+          - port: 8080
+            protocol: TCP
+        resources:
+          requests:
+            cpu: 1
+            memoryInGb: 1.5
+  osType: Linux
+  ipAddress:
+    type: Public
+    ports:
+      - protocol: tcp
+        port: 8080
+  imageRegistryCredentials:
+  - server: tasos77registry.azurecr.io
+    username: tasos77registry
+    password: {YourPasswordFromAzureContainerRegistryKeys}
+tags: null
+type: Microsoft.ContainerInstance/containerGroups
