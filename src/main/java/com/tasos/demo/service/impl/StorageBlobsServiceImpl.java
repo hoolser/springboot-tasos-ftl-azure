@@ -1,10 +1,5 @@
 package com.tasos.demo.service.impl;
 
-import com.azure.storage.blob.BlobContainerClient;
-import com.azure.storage.blob.BlobServiceClient;
-import com.azure.storage.blob.BlobServiceClientBuilder;
-import com.azure.storage.blob.models.BlobContainerItem;
-import com.azure.storage.blob.models.BlobContainerProperties;
 import com.tasos.demo.service.StorageBlobsService;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -13,7 +8,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -23,40 +25,41 @@ import java.util.Map;
 public class StorageBlobsServiceImpl implements StorageBlobsService {
 
     private static final Logger logger = LoggerFactory.getLogger(StorageBlobsServiceImpl.class);
+    private static final long MAX_TOTAL_SIZE_MB = 100;
+    private static final long MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 
-    @Value("${azure-storage-connection-string:}")
-    private String storageConnectionString;
+    // In-memory metadata store (directory name → metadata map)
+    private final Map<String, Map<String, String>> containerMetadataStore = new HashMap<>();
 
-    private BlobServiceClient blobServiceClient;
+    @Value("${local-storage-path:${user.home}/tasos-storage}")
+    private String storagePath;
+
+    private Path storageRoot;
 
     @PostConstruct
     public void initialize() {
         try {
-            if (storageConnectionString == null || storageConnectionString.isBlank()) {
-                logger.warn("Azure Storage connection string is missing or blank. Blob operations will be disabled.");
-                return;
+            storageRoot = Paths.get(storagePath).toAbsolutePath().normalize();
+            if (!Files.exists(storageRoot)) {
+                Files.createDirectories(storageRoot);
+                logger.info("Local storage directory created at: {}", storageRoot);
+            } else {
+                logger.info("Using local storage directory: {}", storageRoot);
             }
-            boolean looksLikeConn = storageConnectionString.contains("AccountName=") && storageConnectionString.contains("AccountKey=");
-            if (!looksLikeConn) {
-                logger.warn("Azure Storage connection string format appears invalid. Blob operations will be disabled.");
-                return;
-            }
-            blobServiceClient = new BlobServiceClientBuilder()
-                    .connectionString(storageConnectionString)
-                    .buildClient();
-            logger.info("BlobServiceClient initialized");
-        } catch (Exception ex) {
-            logger.warn("Failed to initialize BlobServiceClient. Blob operations disabled. Reason: {}", ex.getMessage());
-            blobServiceClient = null;
+        } catch (IOException e) {
+            logger.error("Failed to initialize local storage", e);
+            throw new RuntimeException("Failed to initialize local storage", e);
         }
     }
 
-    private boolean isClientReady() {
-        if (blobServiceClient == null) {
-            logger.warn("Azure Blob Service client is not initialized. Ensure a valid 'azure-storage-connection-string' is configured.");
-            return false;
+    private Path getDirectoryPath(String directoryName) {
+        return storageRoot.resolve(directoryName).normalize();
+    }
+
+    private void validateDirectoryPath(Path directoryPath) throws IOException {
+        if (!directoryPath.toAbsolutePath().normalize().startsWith(storageRoot)) {
+            throw new IOException("Invalid directory path: security check failed");
         }
-        return true;
     }
 
     @Override
@@ -66,181 +69,174 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
 
     @Override
     public List<String> listContainers() {
-        List<String> containerNames = new ArrayList<>();
-        if (!isClientReady()) {
-            return containerNames;
-        }
-
+        List<String> directoryNames = new ArrayList<>();
         try {
-
-            for (BlobContainerItem containerItem : blobServiceClient.listBlobContainers()) {
-                String name = containerItem.getName();
-                logger.info("Found container: {}", name);
-                containerNames.add(name);
+            File[] directories = storageRoot.toFile().listFiles(File::isDirectory);
+            if (directories != null) {
+                for (File directory : directories) {
+                    directoryNames.add(directory.getName());
+                    logger.info("Found directory: {}", directory.getName());
+                }
             }
-
         } catch (Exception e) {
-            logger.error("Failed to list containers", e);
+            logger.error("Failed to list directories", e);
         }
-
-        return containerNames;
+        return directoryNames;
     }
 
     @Override
     public String createUniqueContainer(String containerName) {
-        if (!isClientReady()) {
-            return "Azure Blob Storage is not configured.";
-        }
         try {
+            if (containerName == null || containerName.isEmpty()) {
+                return "Directory name cannot be empty";
+            }
 
-            // Create the container
-            BlobContainerClient containerClient = blobServiceClient
-                    .createBlobContainer(containerName);
+            Path directoryPath = getDirectoryPath(containerName);
+            validateDirectoryPath(directoryPath);
 
-            logger.info("A container named '{}' has been created. Verify it in the Azure portal.", containerName);
-            logger.info("Next a file will be created and uploaded to the container.");
-
-            return containerName;
-
+            if (!Files.exists(directoryPath)) {
+                Files.createDirectories(directoryPath);
+                logger.info("Directory '{}' has been created at: {}", containerName, directoryPath);
+                return containerName;
+            } else {
+                logger.info("Directory '{}' already exists", containerName);
+                return containerName;
+            }
         } catch (Exception e) {
-            logger.error("Failed to create container", e);
+            logger.error("Failed to create directory", e);
             return e.getMessage();
         }
     }
 
     @Override
     public String uploadTestFileToContainer(String containerName) {
-        if (!isClientReady()) {
-            return "Azure Blob Storage is not configured.";
-        }
         try {
-
-            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
-
-            if (!containerClient.exists()) {
-                logger.error("Container '{}' does not exist.", containerName);
-                return "Container does not exist";
+            if (containerName == null || containerName.isEmpty()) {
+                return "Directory name cannot be empty";
             }
 
-            String blobName = "test-file.txt";
-            String fileContent = "This is a test file uploaded to Azure Blob Storage.";
-            byte[] contentBytes = fileContent.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            Path directoryPath = getDirectoryPath(containerName);
+            validateDirectoryPath(directoryPath);
 
-            containerClient.getBlobClient(blobName)
-                    .upload(new java.io.ByteArrayInputStream(contentBytes), contentBytes.length, true);
+            if (!Files.exists(directoryPath)) {
+                logger.error("Directory '{}' does not exist.", containerName);
+                return "Directory does not exist";
+            }
 
-            logger.info("Test file '{}' uploaded to container '{}'.", blobName, containerName);
+            String fileName = "test-file.txt";
+            String fileContent = "This is a test file uploaded to local storage.";
+            Path filePath = directoryPath.resolve(fileName);
+
+            Files.write(filePath, fileContent.getBytes());
+            logger.info("Test file '{}' uploaded to directory '{}'.", fileName, containerName);
             return "Test file uploaded successfully";
         } catch (Exception e) {
-            logger.error("Failed to upload test file to container", e);
+            logger.error("Failed to upload test file to directory", e);
             return e.getMessage();
         }
     }
 
     @Override
     public List<String> listFilesInContainer(String containerName) {
-        List<String> blobNames = new ArrayList<>();
-        if (!isClientReady()) {
-            return blobNames;
-        }
+        List<String> fileNames = new ArrayList<>();
         try {
+            Path directoryPath = getDirectoryPath(containerName);
+            validateDirectoryPath(directoryPath);
 
-            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
-
-            if (!containerClient.exists()) {
-                logger.error("Container '{}' does not exist.", containerName);
+            if (!Files.exists(directoryPath) || !Files.isDirectory(directoryPath)) {
+                logger.error("Directory '{}' does not exist.", containerName);
                 return null;
             }
 
-            containerClient.listBlobs().forEach(blobItem -> {
-                logger.info("Found blob: {}", blobItem.getName());
-                blobNames.add(blobItem.getName());
-            });
-
+            File[] files = directoryPath.toFile().listFiles(File::isFile);
+            if (files != null) {
+                for (File file : files) {
+                    logger.info("Found file: {}", file.getName());
+                    fileNames.add(file.getName());
+                }
+            }
         } catch (Exception e) {
-            logger.error("Failed to list blobs in container", e);
+            logger.error("Failed to list files in directory", e);
         }
-        return blobNames;
+        return fileNames;
     }
 
     @Override
     public List<byte[]> downloadBlobsFromContainer(String containerName) {
         List<byte[]> filesData = new ArrayList<>();
-        if (!isClientReady()) {
-            return filesData;
-        }
         try {
+            Path directoryPath = getDirectoryPath(containerName);
+            validateDirectoryPath(directoryPath);
 
-            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
-
-            if (!containerClient.exists()) {
-                logger.error("Container '{}' does not exist.", containerName);
+            if (!Files.exists(directoryPath) || !Files.isDirectory(directoryPath)) {
+                logger.error("Directory '{}' does not exist.", containerName);
                 return filesData;
             }
 
-            containerClient.listBlobs().forEach(blobItem -> {
-                String blobName = blobItem.getName();
-                try {
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                    containerClient.getBlobClient(blobName).download(outputStream);
-                    filesData.add(outputStream.toByteArray());
-                    logger.info("Downloaded blob '{}'", blobName);
-                } catch (Exception ex) {
-                    logger.error("Failed to download blob '{}'", blobName, ex);
+            File[] files = directoryPath.toFile().listFiles(File::isFile);
+            if (files != null) {
+                for (File file : files) {
+                    try {
+                        byte[] data = Files.readAllBytes(file.toPath());
+                        filesData.add(data);
+                        logger.info("Read file '{}'", file.getName());
+                    } catch (Exception ex) {
+                        logger.error("Failed to read file '{}'", file.getName(), ex);
+                    }
                 }
-            });
-
+            }
         } catch (Exception e) {
-            logger.error("Failed to download blobs from container", e);
+            logger.error("Failed to download files from directory", e);
         }
         return filesData;
     }
 
     @Override
     public String deleteContainer(String containerName) {
-        if (!isClientReady()) {
-            return "Azure Blob Storage is not configured.";
-        }
         try {
+            Path directoryPath = getDirectoryPath(containerName);
+            validateDirectoryPath(directoryPath);
 
-            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
-
-            if (!containerClient.exists()) {
-                logger.error("Container '{}' does not exist.", containerName);
+            if (!Files.exists(directoryPath) || !Files.isDirectory(directoryPath)) {
+                logger.error("Directory '{}' does not exist.", containerName);
                 return "Container does not exist";
             }
 
-            containerClient.delete();
-            logger.info("Container '{}' deleted successfully.", containerName);
+            // Delete all files inside first, then the directory
+            File[] files = directoryPath.toFile().listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    Files.delete(file.toPath());
+                }
+            }
+            Files.delete(directoryPath);
+            containerMetadataStore.remove(containerName);
+            logger.info("Directory '{}' deleted successfully.", containerName);
             return "Container deleted successfully";
         } catch (Exception e) {
-            logger.error("Failed to delete container", e);
+            logger.error("Failed to delete directory", e);
             return e.getMessage();
         }
     }
 
-
+    @Override
     public String uploadFileToContainer(String container, MultipartFile file) {
-        final long MAX_TOTAL_SIZE_MB = 100; // upload limitation in size.
-        final long MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
-
-        if (!isClientReady()) {
-            return "Azure Blob Storage is not configured.";
-        }
-
         try {
+            Path directoryPath = getDirectoryPath(container);
+            validateDirectoryPath(directoryPath);
 
-            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(container);
-
-            if (!containerClient.exists()) {
-                logger.error("Container '{}' does not exist.", container);
+            if (!Files.exists(directoryPath) || !Files.isDirectory(directoryPath)) {
+                logger.error("Directory '{}' does not exist.", container);
                 return "Container does not exist";
             }
 
             // Calculate current total size
             long currentTotalSize = 0;
-            for (var blobItem : containerClient.listBlobs()) {
-                currentTotalSize += blobItem.getProperties().getContentLength();
+            File[] existing = directoryPath.toFile().listFiles(File::isFile);
+            if (existing != null) {
+                for (File f : existing) {
+                    currentTotalSize += f.length();
+                }
             }
 
             long newFileSize = file.getSize();
@@ -248,159 +244,152 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
                 return "Upload failed: total container size limit (" + MAX_TOTAL_SIZE_MB + " MB) exceeded.";
             }
 
-            String blobName = file.getOriginalFilename();
-            if (blobName == null || blobName.isEmpty()) {
+            String fileName = file.getOriginalFilename();
+            if (fileName == null || fileName.isEmpty()) {
                 return "Invalid file name.";
             }
 
-            containerClient.getBlobClient(blobName)
-                    .upload(file.getInputStream(), newFileSize, true);
+            Path filePath = directoryPath.resolve(fileName).normalize();
+            validateDirectoryPath(filePath.getParent());
 
-            logger.info("File '{}' uploaded to container '{}'.", blobName, container);
+            Files.write(filePath, file.getBytes());
+            logger.info("File '{}' uploaded to directory '{}'.", fileName, container);
             return "File uploaded successfully";
         } catch (Exception e) {
-            logger.error("Failed to upload file to container", e);
+            logger.error("Failed to upload file to directory", e);
             return e.getMessage();
         }
     }
 
+    @Override
     public byte[] downloadFileFromContainer(String container, String fileName) {
-        if (!isClientReady()) {
-            return new byte[0];
-        }
         try {
+            Path directoryPath = getDirectoryPath(container);
+            validateDirectoryPath(directoryPath);
 
-            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(container);
-
-            if (!containerClient.exists()) {
-                logger.error("Container '{}' does not exist.", container);
+            if (!Files.exists(directoryPath) || !Files.isDirectory(directoryPath)) {
+                logger.error("Directory '{}' does not exist.", container);
                 return null;
             }
 
-            if (!containerClient.getBlobClient(fileName).exists()) {
-                logger.error("Blob '{}' does not exist in container '{}'.", fileName, container);
+            Path filePath = directoryPath.resolve(fileName).normalize();
+            validateDirectoryPath(filePath.getParent());
+
+            if (!Files.exists(filePath)) {
+                logger.error("File '{}' does not exist in directory '{}'.", fileName, container);
                 return null;
             }
 
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            containerClient.getBlobClient(fileName).download(outputStream);
-            logger.info("File '{}' downloaded from container '{}'.", fileName, container);
-            return outputStream.toByteArray();
+            byte[] data = Files.readAllBytes(filePath);
+            logger.info("File '{}' downloaded from directory '{}'.", fileName, container);
+            return data;
         } catch (Exception e) {
-            logger.error("Failed to download file from container", e);
+            logger.error("Failed to download file from directory", e);
             return null;
         }
     }
 
+    @Override
     public String clearContainer(String container) {
-        if (!isClientReady()) {
-            return "Azure Blob Storage is not configured.";
-        }
         try {
-            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(container);
+            Path directoryPath = getDirectoryPath(container);
+            validateDirectoryPath(directoryPath);
 
-            if (!containerClient.exists()) {
-                logger.error("Container '{}' does not exist.", container);
+            if (!Files.exists(directoryPath) || !Files.isDirectory(directoryPath)) {
+                logger.error("Directory '{}' does not exist.", container);
                 return "Container does not exist";
             }
 
             int deleted = 0;
-            for (var blobItem : containerClient.listBlobs()) {
-                containerClient.getBlobClient(blobItem.getName()).delete();
-                deleted++;
+            File[] files = directoryPath.toFile().listFiles(File::isFile);
+            if (files != null) {
+                for (File file : files) {
+                    Files.delete(file.toPath());
+                    deleted++;
+                }
             }
-            logger.info("Deleted {} blobs from container '{}'.", deleted, container);
+            logger.info("Deleted {} file(s) from directory '{}'.", deleted, container);
             return deleted + " file(s) deleted from container.";
         } catch (Exception e) {
-            logger.error("Failed to clear container", e);
+            logger.error("Failed to clear directory", e);
             return e.getMessage();
         }
     }
 
-
     @Override
     public String readContainerProperties(String containerName) {
-        if (!isClientReady()) {
-            return "Azure Blob Storage is not configured.";
-        }
         try {
-            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+            Path directoryPath = getDirectoryPath(containerName);
+            validateDirectoryPath(directoryPath);
 
-            if (!containerClient.exists()) {
-                logger.error("Container '{}' does not exist.", containerName);
+            if (!Files.exists(directoryPath) || !Files.isDirectory(directoryPath)) {
+                logger.error("Directory '{}' does not exist.", containerName);
                 return "Container does not exist";
             }
 
-            BlobContainerProperties properties = containerClient.getProperties();
+            BasicFileAttributes attrs = Files.readAttributes(directoryPath, BasicFileAttributes.class);
 
-            // Create a formatted string with all relevant properties
+            long totalSize = 0;
+            int fileCount = 0;
+            File[] files = directoryPath.toFile().listFiles(File::isFile);
+            if (files != null) {
+                for (File f : files) {
+                    totalSize += f.length();
+                    fileCount++;
+                }
+            }
+
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneOffset.UTC);
+
             StringBuilder propertiesStr = new StringBuilder();
             propertiesStr.append("Container Properties:\n");
-            propertiesStr.append("  ETag: ").append(properties.getETag()).append("\n");
-            propertiesStr.append("  Last Modified: ").append(properties.getLastModified()).append("\n");
-            propertiesStr.append("  Lease Status: ").append(properties.getLeaseStatus()).append("\n");
-            propertiesStr.append("  Lease State: ").append(properties.getLeaseState()).append("\n");
-            propertiesStr.append("  Lease Duration: ").append(properties.getLeaseDuration()).append("\n");
-            propertiesStr.append("  Public Access: ").append(properties.getBlobPublicAccess()).append("\n");
-            propertiesStr.append("  Has Immutability Policy: ").append(properties.hasImmutabilityPolicy()).append("\n");
-            propertiesStr.append("  Has Legal Hold: ").append(properties.hasLegalHold()).append("\n");
-
-            // Include metadata with clear formatting
+            propertiesStr.append("  Path: ").append(directoryPath).append("\n");
+            propertiesStr.append("  Created: ").append(fmt.format(attrs.creationTime().toInstant())).append("\n");
+            propertiesStr.append("  Last Modified: ").append(fmt.format(attrs.lastModifiedTime().toInstant())).append("\n");
+            propertiesStr.append("  File Count: ").append(fileCount).append("\n");
+            propertiesStr.append("  Total Size: ").append(totalSize).append(" bytes (")
+                    .append(String.format("%.2f", totalSize / (1024.0 * 1024.0))).append(" MB)\n");
             propertiesStr.append("  Metadata:\n");
-            if (properties.getMetadata() != null && !properties.getMetadata().isEmpty()) {
-                properties.getMetadata().forEach((key, value) ->
+
+            Map<String, String> metadata = containerMetadataStore.getOrDefault(containerName, new HashMap<>());
+            if (!metadata.isEmpty()) {
+                metadata.forEach((key, value) ->
                         propertiesStr.append("    ").append(key).append(": ").append(value).append("\n"));
-
-                // Check for specific metadata keys we're interested in
-                /*String docType = properties.getMetadata().getOrDefault("docType", "Not set");
-                String category = properties.getMetadata().getOrDefault("category", "Not set");
-
-                propertiesStr.append("\n  Important Metadata Values:\n");
-                propertiesStr.append("    Document Type: ").append(docType).append("\n");
-                propertiesStr.append("    Category: ").append(category).append("\n");*/
             } else {
                 propertiesStr.append("    No metadata found. Use addContainerMetadata() to add metadata.\n");
             }
 
-            logger.info("Retrieved properties for container '{}'", containerName);
+            logger.info("Retrieved properties for directory '{}'", containerName);
             return propertiesStr.toString();
-
         } catch (Exception e) {
-            logger.error("Failed to retrieve container properties", e);
+            logger.error("Failed to retrieve directory properties", e);
             return "Error retrieving container properties: " + e.getMessage();
         }
     }
 
     @Override
     public String addContainerMetadata(String containerName) {
-        if (!isClientReady()) {
-            return "Azure Blob Storage is not configured.";
-        }
         try {
-            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+            Path directoryPath = getDirectoryPath(containerName);
+            validateDirectoryPath(directoryPath);
 
-            if (!containerClient.exists()) {
-                logger.error("Container '{}' does not exist.", containerName);
+            if (!Files.exists(directoryPath) || !Files.isDirectory(directoryPath)) {
+                logger.error("Directory '{}' does not exist.", containerName);
                 return "Container does not exist";
             }
 
-            // Create a map to hold the metadata
             Map<String, String> metadata = new HashMap<>();
-
-            // Add metadata to the container
             metadata.put("docType", "textDocuments");
             metadata.put("category", "guidance");
 
-            // Set the container's metadata
-            containerClient.setMetadata(metadata);
+            containerMetadataStore.put(containerName, metadata);
 
-            logger.info("Metadata added to container '{}'.", containerName);
+            logger.info("Metadata added to directory '{}'.", containerName);
             return "Metadata added successfully to container";
         } catch (Exception e) {
-            logger.error("Failed to add metadata to container", e);
+            logger.error("Failed to add metadata to directory", e);
             return e.getMessage();
         }
     }
-
 
 }
