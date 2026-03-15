@@ -2,6 +2,7 @@ package com.tasos.demo.service.impl;
 
 import com.deepl.api.TextResult;
 import com.deepl.api.Translator;
+import com.deepl.api.QuotaExceededException;
 import com.tasos.demo.config.StorageConstants;
 import com.tasos.demo.model.SrtSubtitle;
 import com.tasos.demo.service.SrtTranslationService;
@@ -148,6 +149,9 @@ public class SrtTranslationServiceImpl implements SrtTranslationService {
 
                     logger.info("Batch {}/{} completed successfully", batchNumber, totalBatches);
 
+                } catch (com.deepl.api.QuotaExceededException e) {
+                    logger.error("DeepL API Quota exceeded: {}", e.getMessage());
+                    throw new RuntimeException("DeepL API quota exceeded for this billing period. Please try again next billing cycle.", e);
                 } catch (com.deepl.api.DeepLException e) {
                     logger.error("Failed to translate batch {}/{}: {}", batchNumber, totalBatches, e.getMessage());
                     throw new RuntimeException("Translation failed for batch " + batchNumber + ": " + e.getMessage(), e);
@@ -240,15 +244,39 @@ public class SrtTranslationServiceImpl implements SrtTranslationService {
                     int textStart = match.indexOf("<text>");
                     int textEnd = match.indexOf("</text>");
 
-                    if (textStart == -1 || textEnd == -1) {
-                        logger.warn("Subtitle {}: Could not find <text> tags in XML response",
-                            subtitleIdx + 1);
-                        subtitleIdx++;
-                        continue;
-                    }
+                    String translatedText = null;
 
-                    textStart += "<text>".length();
-                    String translatedText = match.substring(textStart, textEnd);
+                    if (textStart != -1 && textEnd != -1) {
+                        // Normal case: <text> tags found
+                        textStart += "<text>".length();
+                        translatedText = match.substring(textStart, textEnd);
+                    } else {
+                        // Fallback: <text> tags NOT found - DeepL may have altered them
+                        // Extract everything after </originalText> as the translated content
+                        int fallbackStart = match.indexOf("</originalText>");
+                        if (fallbackStart != -1) {
+                            fallbackStart += "</originalText>".length();
+                            int fallbackEnd = match.indexOf("</subtitle>");
+                            if (fallbackEnd == -1) {
+                                fallbackEnd = match.length();
+                            }
+
+                            String content = match.substring(fallbackStart, fallbackEnd).trim();
+                            // Remove any XML tags that might be there
+                            translatedText = content.replaceAll("<[^>]*>", "").trim();
+
+                            if (translatedText.isEmpty()) {
+                                translatedText = null;
+                            }
+                        }
+
+                        if (translatedText == null) {
+                            logger.warn("Subtitle {}: Could not find <text> tags in XML response and fallback extraction failed",
+                                subtitleIdx + 1);
+                            subtitleIdx++;
+                            continue;
+                        }
+                    }
 
                     // Unescape XML entities
                     translatedText = unescapeXml(translatedText);
