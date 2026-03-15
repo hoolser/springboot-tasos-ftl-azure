@@ -16,6 +16,9 @@
         <a href="/share-blob-page">
             <button class="home-button" style="margin-top: 30px;">Go to Share Blob Page</button>
         </a>
+        <a href="/srt-translation-page">
+            <button class="home-button" style="margin-top: 30px;">Go to SRT Translation</button>
+        </a>
 
         <a href="/api/courses" target="_blank">
             <button class="home-button" style="margin-top: 30px;">Get Courses</button>

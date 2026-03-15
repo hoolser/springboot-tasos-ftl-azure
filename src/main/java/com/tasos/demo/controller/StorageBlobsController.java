@@ -1,6 +1,7 @@
 package com.tasos.demo.controller;
 
 
+import com.tasos.demo.config.StorageConstants;
 import com.tasos.demo.service.StorageBlobsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,9 +35,6 @@ public class StorageBlobsController {
     private static final Logger logger = LoggerFactory.getLogger(StorageBlobsController.class);
 
     private final StorageBlobsService storageBlobsService;
-
-    private static final String SHARE_CONTAINER = "tasos-shared-container";
-
 
     @GetMapping("/test")
     public String test() {
@@ -84,8 +82,8 @@ public class StorageBlobsController {
 
     @GetMapping("/listFilesOfShared")
     public String listFilesOfShared() {
-        List<String> fileNames = storageBlobsService.listFilesInContainer(SHARE_CONTAINER);
-        return (fileNames!=null ? ("Files in container: "+ fileNames) : ("Container "+ SHARE_CONTAINER+" does not exist."));
+        List<String> fileNames = storageBlobsService.listFilesInContainer(StorageConstants.SHARE_CONTAINER);
+        return (fileNames!=null ? ("Files in container: "+ fileNames) : ("Container "+ StorageConstants.SHARE_CONTAINER+" does not exist."));
     }
 
     @GetMapping("/downloadBlobs")
@@ -147,13 +145,13 @@ public class StorageBlobsController {
         if (file.isEmpty()) {
             return "No file selected.";
         }
-        return storageBlobsService.uploadFileToContainer(SHARE_CONTAINER, file);
+        return storageBlobsService.uploadFileToContainer(StorageConstants.SHARE_CONTAINER, file);
     }
 
     // Download file endpoint
     @GetMapping("/share/download")
     public ResponseEntity<byte[]> downloadFileFromShareContainer(@RequestParam String fileName) {
-        byte[] data = storageBlobsService.downloadFileFromContainer(SHARE_CONTAINER, fileName);
+        byte[] data = storageBlobsService.downloadFileFromContainer(StorageConstants.SHARE_CONTAINER, fileName);
         if (data == null) {
             return ResponseEntity.notFound().build();
         }
@@ -165,7 +163,7 @@ public class StorageBlobsController {
 
     @PostMapping("/share/clear")
     public String clearShareContainer() {
-        return storageBlobsService.clearContainer(SHARE_CONTAINER);
+        return storageBlobsService.clearContainer(StorageConstants.SHARE_CONTAINER);
     }
 
     @GetMapping("/readContainerProperties")

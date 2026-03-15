@@ -56,4 +56,12 @@ public class HomeController {
         return "share-file-blob";
     }
 
+    @GetMapping("/srt-translation-page")
+    public String srtTranslation(Model model) {
+        logger.info("Start HomeController.srtTranslation");
+        model.addAttribute("message", messageService.getMessage());
+        logger.info("End HomeController.srtTranslation");
+        return "srt-translation";
+    }
+
 }

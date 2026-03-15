@@ -1,5 +1,6 @@
 package com.tasos.demo.service.impl;
 
+import com.tasos.demo.config.StorageConstants;
 import com.tasos.demo.service.StorageBlobsService;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -25,13 +26,11 @@ import java.util.Map;
 public class StorageBlobsServiceImpl implements StorageBlobsService {
 
     private static final Logger logger = LoggerFactory.getLogger(StorageBlobsServiceImpl.class);
-    private static final long MAX_TOTAL_SIZE_MB = 100;
-    private static final long MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 
     // In-memory metadata store (directory name → metadata map)
     private final Map<String, Map<String, String>> containerMetadataStore = new HashMap<>();
 
-    @Value("${local-storage-path:${user.home}/tasos-storage}")
+    @Value("${" + StorageConstants.STORAGE_PATH_PROPERTY_KEY + ":${user.home}/" + StorageConstants.DEFAULT_LOCAL_STORAGE_DIR + "}")
     private String storagePath;
 
     private Path storageRoot;
@@ -240,8 +239,8 @@ public class StorageBlobsServiceImpl implements StorageBlobsService {
             }
 
             long newFileSize = file.getSize();
-            if (currentTotalSize + newFileSize > MAX_TOTAL_SIZE_BYTES) {
-                return "Upload failed: total container size limit (" + MAX_TOTAL_SIZE_MB + " MB) exceeded.";
+            if (currentTotalSize + newFileSize > StorageConstants.MAX_TOTAL_SIZE_BYTES) {
+                return "Upload failed: total container size limit (" + StorageConstants.MAX_TOTAL_SIZE_MB + " MB) exceeded.";
             }
 
             String fileName = file.getOriginalFilename();

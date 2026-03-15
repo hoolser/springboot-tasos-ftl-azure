@@ -48,6 +48,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- DeepL Translation API -->
+        <dependency>
+            <groupId>com.deepl.api</groupId>
+            <artifactId>deepl-java</artifactId>
+            <version>1.4.0</version>
+        </dependency>
+
     </dependencies>
 
     <build>
