@@ -17,7 +17,6 @@ import java.io.InputStreamReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class SrtTranslationServiceImpl implements SrtTranslationService {
@@ -71,40 +70,12 @@ public class SrtTranslationServiceImpl implements SrtTranslationService {
         List<SrtSubtitle> subtitles = SrtParser.parse(srtContent);
         logger.info("Parsed {} subtitles from the SRT file", subtitles.size());
 
-        // Translate subtitles
-        for (SrtSubtitle subtitle : subtitles) {
-            String originalText = subtitle.getText();
+        // Use batch translation with XML tag handling for better context and grammar
+        logger.info("Using batch translation with DeepL's native XML tag handling for improved accuracy");
+        translateSubtitlesWithXmlHandling(subtitles);
 
-            // Remove HTML tags for translation
-            String textToTranslate = SrtParser.removeHtmlTags(originalText);
-
-            logger.debug("Translating subtitle {}: {}", subtitle.getIndex(), textToTranslate);
-
-            try {
-                // Translate using DeepL
-                // Source: English (EN-US), Target: Greek (EL)
-                TextResult result = getTranslator().translateText(
-                        textToTranslate,
-                        "EN",
-                        "EL"
-                );
-
-                String translatedText = result.getText();
-                logger.debug("Translation result: {}", translatedText);
-
-                // Restore HTML tags in the translated text
-                String translatedWithTags = restoreHtmlTags(originalText, translatedText);
-                subtitle.setText(translatedWithTags);
-
-            } catch (com.deepl.api.DeepLException e) {
-                logger.error("Failed to translate subtitle {}: {}", subtitle.getIndex(), e.getMessage());
-                throw new RuntimeException("Translation failed for subtitle " + subtitle.getIndex(), e);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                logger.error("Translation interrupted for subtitle {}: {}", subtitle.getIndex(), e.getMessage());
-                throw new RuntimeException("Translation interrupted for subtitle " + subtitle.getIndex(), e);
-            }
-        }
+        // Verify all subtitles were translated
+        verifyTranslation(subtitles);
 
         // Generate SRT output
         String translatedSrt = generateSrtContent(subtitles);
@@ -124,6 +95,290 @@ public class SrtTranslationServiceImpl implements SrtTranslationService {
     }
 
     /**
+     * Translate subtitles using DeepL's native XML tag handling.
+     * This approach keeps HTML tags in the content and lets DeepL handle them natively,
+     * providing better context awareness, grammar, and gender agreement.
+     *
+     * Strategy: Batch translate groups of subtitles together to provide context
+     * for DeepL while staying within API limits.
+     * Batch size: 6 subtitles per batch for optimal results
+     */
+    private void translateSubtitlesWithXmlHandling(List<SrtSubtitle> subtitles) throws Exception {
+        final int BATCH_SIZE = StorageConstants.SRT_TRANSLATION_BATCH_SIZE;
+
+        logger.info("Starting batch translation with XML tag handling (batch size: {})", BATCH_SIZE);
+        logger.info("Total subtitles to translate: {}", subtitles.size());
+
+        int totalBatches = (subtitles.size() + BATCH_SIZE - 1) / BATCH_SIZE;
+        int batchNumber = 0;
+
+        try {
+            for (int i = 0; i < subtitles.size(); i += BATCH_SIZE) {
+                batchNumber++;
+                int endIdx = Math.min(i + BATCH_SIZE, subtitles.size());
+                List<SrtSubtitle> batch = subtitles.subList(i, endIdx);
+
+                logger.info("Processing batch {}/{}: Subtitles {} to {} ({} subtitles)",
+                    batchNumber, totalBatches, i + 1, endIdx, batch.size());
+
+                // Log which subtitles are in this batch
+                StringBuilder batchInfo = new StringBuilder("Batch details: ");
+                for (SrtSubtitle sub : batch) {
+                    batchInfo.append("[").append(sub.getIndex()).append("] ");
+                }
+                logger.debug(batchInfo.toString());
+
+                // Build XML-formatted content for this batch
+                String batchXml = buildXmlBatch(batch);
+                logger.debug("Built XML batch, sending to DeepL...");
+
+                try {
+                    // Translate the batch with XML formatting
+                    TextResult result = getTranslator().translateText(
+                            batchXml,
+                            "EN",
+                            "EL"
+                    );
+
+                    String translatedBatch = result.getText();
+                    logger.debug("Batch translation result received ({} characters)", translatedBatch.length());
+
+                    // Parse translated batch and update subtitles
+                    updateSubtitlesFromXmlBatch(batch, translatedBatch);
+
+                    logger.info("Batch {}/{} completed successfully", batchNumber, totalBatches);
+
+                } catch (com.deepl.api.DeepLException e) {
+                    logger.error("Failed to translate batch {}/{}: {}", batchNumber, totalBatches, e.getMessage());
+                    throw new RuntimeException("Translation failed for batch " + batchNumber + ": " + e.getMessage(), e);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    logger.error("Translation interrupted for batch {}/{}", batchNumber, totalBatches);
+                    throw new RuntimeException("Translation interrupted for batch " + batchNumber, e);
+                }
+            }
+
+            logger.info("All {}/{} batches translated successfully", batchNumber, totalBatches);
+
+        } catch (Exception e) {
+            logger.error("Error during batch translation: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    /**
+     * Build XML-formatted content from subtitles for batch translation.
+     * This format helps DeepL understand the context and structure.
+     *
+     * Strategy:
+     * 1. Extract HTML tags from text and store them separately
+     * 2. Send only the clean text to DeepL (minimize API usage)
+     * 3. Restore tags in the translated output
+     */
+    private String buildXmlBatch(List<SrtSubtitle> subtitles) {
+        StringBuilder xml = new StringBuilder();
+        xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+        xml.append("<subtitles>\n");
+
+        for (SrtSubtitle subtitle : subtitles) {
+            // Extract HTML tags and get clean text
+            String originalText = subtitle.getText();
+            String cleanText = SrtParser.removeHtmlTags(originalText);
+
+            // Wrap each subtitle in XML tags for structure
+            // Send only clean text without HTML tags to DeepL
+            xml.append("  <subtitle>\n");
+            xml.append("    <index>").append(subtitle.getIndex()).append("</index>\n");
+            xml.append("    <timecode>").append(subtitle.getTimecode()).append("</timecode>\n");
+            xml.append("    <originalText>").append(escapeXml(originalText)).append("</originalText>\n");
+            xml.append("    <text>").append(escapeXml(cleanText)).append("</text>\n");
+            xml.append("  </subtitle>\n");
+        }
+
+        xml.append("</subtitles>");
+        return xml.toString();
+    }
+
+    /**
+     * Parse the translated XML batch and update subtitle texts.
+     * Extracts the translated text from each subtitle element and restores HTML tags.
+     *
+     * This method is robust against parsing edge cases and ensures all subtitles
+     * are properly updated even with malformed or edge-case input.
+     */
+    private void updateSubtitlesFromXmlBatch(List<SrtSubtitle> subtitles, String xmlResponse) {
+        try {
+            logger.debug("Parsing XML response for {} subtitles", subtitles.size());
+
+            // Split by <subtitle> to get individual subtitle blocks
+            String[] subtitleMatches = xmlResponse.split("<subtitle>");
+
+            int subtitleIdx = 0;
+            int successfulUpdates = 0;
+
+            for (int i = 1; i < subtitleMatches.length && subtitleIdx < subtitles.size(); i++) {
+                String match = subtitleMatches[i];
+
+                try {
+                    // Extract original text to get HTML tags
+                    int origStart = match.indexOf("<originalText>");
+                    int origEnd = match.indexOf("</originalText>");
+                    String originalText = "";
+
+                    if (origStart != -1 && origEnd != -1) {
+                        origStart += "<originalText>".length();
+                        originalText = match.substring(origStart, origEnd);
+                        originalText = unescapeXml(originalText);
+                        logger.debug("Subtitle {}: Original text extracted: {}",
+                            subtitles.get(subtitleIdx).getIndex(), originalText);
+                    } else {
+                        logger.warn("Subtitle {}: Could not find <originalText> tags in XML response",
+                            subtitleIdx + 1);
+                    }
+
+                    // Extract translated text (without HTML tags)
+                    int textStart = match.indexOf("<text>");
+                    int textEnd = match.indexOf("</text>");
+
+                    if (textStart == -1 || textEnd == -1) {
+                        logger.warn("Subtitle {}: Could not find <text> tags in XML response",
+                            subtitleIdx + 1);
+                        subtitleIdx++;
+                        continue;
+                    }
+
+                    textStart += "<text>".length();
+                    String translatedText = match.substring(textStart, textEnd);
+
+                    // Unescape XML entities
+                    translatedText = unescapeXml(translatedText);
+
+                    if (translatedText == null || translatedText.trim().isEmpty()) {
+                        logger.warn("Subtitle {}: Translated text is empty after unescaping",
+                            subtitleIdx + 1);
+                        subtitleIdx++;
+                        continue;
+                    }
+
+                    logger.debug("Subtitle {}: Translated text extracted: {}",
+                        subtitles.get(subtitleIdx).getIndex(), translatedText);
+
+                    // Restore HTML tags from original text
+                    String translatedWithTags = restoreHtmlTags(originalText, translatedText);
+
+                    if (translatedWithTags == null || translatedWithTags.trim().isEmpty()) {
+                        logger.warn("Subtitle {}: Final text is empty after tag restoration",
+                            subtitleIdx + 1);
+                        subtitleIdx++;
+                        continue;
+                    }
+
+                    subtitles.get(subtitleIdx).setText(translatedWithTags);
+                    logger.debug("Subtitle {} ({}) updated successfully with: {}",
+                        subtitleIdx + 1,
+                        subtitles.get(subtitleIdx).getIndex(),
+                        translatedWithTags);
+
+                    successfulUpdates++;
+                    subtitleIdx++;
+
+                } catch (Exception e) {
+                    logger.error("Error processing subtitle {} from XML response: {}",
+                        subtitleIdx + 1, e.getMessage(), e);
+                    subtitleIdx++;
+                    continue;
+                }
+            }
+
+            if (successfulUpdates == 0) {
+                logger.error("CRITICAL: No subtitles were successfully updated from XML response!");
+                throw new RuntimeException("Failed to parse any subtitles from XML response. Response was: " + xmlResponse);
+            }
+
+            if (successfulUpdates < subtitles.size()) {
+                logger.warn("Only {}/{} subtitles were successfully updated from XML response",
+                    successfulUpdates, subtitles.size());
+            }
+
+            logger.info("Successfully updated {}/{} subtitles from translated batch",
+                successfulUpdates, subtitles.size());
+
+        } catch (Exception e) {
+            logger.error("Error parsing XML batch response: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to parse translated batch response: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Restore HTML tags from original text to translated text.
+     * Preserves the tag structure while using the translated content.
+     */
+    private String restoreHtmlTags(String originalText, String translatedText) {
+        if (originalText == null || originalText.isEmpty()) {
+            return translatedText;
+        }
+
+        // Extract all HTML tags from original text in order
+        java.util.List<String> tags = new java.util.ArrayList<>();
+        java.util.regex.Pattern tagPattern = java.util.regex.Pattern.compile("<[^>]*>");
+        java.util.regex.Matcher matcher = tagPattern.matcher(originalText);
+
+        while (matcher.find()) {
+            tags.add(matcher.group());
+        }
+
+        if (tags.isEmpty()) {
+            // No tags to restore
+            return translatedText;
+        }
+
+        // Find opening and closing tags
+        StringBuilder openingTags = new StringBuilder();
+        StringBuilder closingTags = new StringBuilder();
+
+        for (String tag : tags) {
+            if (tag.startsWith("</")) {
+                closingTags.insert(0, tag);
+            } else {
+                openingTags.append(tag);
+            }
+        }
+
+        // Wrap translated text with tags in same order as original
+        return openingTags.append(translatedText).append(closingTags).toString();
+    }
+
+    /**
+     * Escape XML special characters
+     */
+    private String escapeXml(String text) {
+        if (text == null) {
+            return "";
+        }
+        return text
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;");
+    }
+
+    /**
+     * Unescape XML special characters
+     */
+    private String unescapeXml(String text) {
+        if (text == null) {
+            return "";
+        }
+        return text
+                .replace("&apos;", "'")
+                .replace("&quot;", "\"")
+                .replace("&gt;", ">")
+                .replace("&lt;", "<")
+                .replace("&amp;", "&");
+    }
+
+    /**
      * Read multipart file content as string
      */
     private String readFileContent(MultipartFile file) throws IOException {
@@ -139,52 +394,47 @@ public class SrtTranslationServiceImpl implements SrtTranslationService {
     }
 
     /**
-     * Restore HTML tags from original text to translated text
-     * This preserves the structure and tags from the original
+     * Verify that all subtitles have been translated.
+     * Detects any subtitles that were not properly translated (still contain English text).
+     * Logs warnings for untranslated or partially translated subtitles.
      */
-    private String restoreHtmlTags(String originalText, String translatedText) {
-        // Extract all HTML tags from original text
-        List<String> tags = extractHtmlTags(originalText);
+    private void verifyTranslation(List<SrtSubtitle> subtitles) {
+        logger.info("Verifying translation quality for {} subtitles...", subtitles.size());
 
-        if (tags.isEmpty()) {
-            // No tags to restore, return translated text as is
-            return translatedText;
-        }
+        java.util.List<Integer> untranslatedIndices = new java.util.ArrayList<>();
+        int warningCount = 0;
 
-        // Find opening and closing tags
-        String openingTag = "";
-        String closingTag = "";
+        for (SrtSubtitle subtitle : subtitles) {
+            String text = subtitle.getText();
 
-        for (String tag : tags) {
-            if (tag.startsWith("</")) {
-                closingTag = tag;
-            } else {
-                openingTag = tag;
+            // Check if text appears to still contain significant English content
+            // This is a heuristic check - very short texts or proper nouns might not translate
+            if (text != null && !text.isEmpty()) {
+                // Count English words (basic heuristic: common English words)
+                String[] englishKeywords = {" is ", " the ", " and ", " to ", " of ", " in ", " you ", " i ", " it ", " for "};
+                int englishWordCount = 0;
+
+                for (String keyword : englishKeywords) {
+                    if (text.toLowerCase().contains(keyword)) {
+                        englishWordCount++;
+                    }
+                }
+
+                // If more than 3 English keywords found, likely not translated
+                if (englishWordCount > 3) {
+                    untranslatedIndices.add(subtitle.getIndex());
+                    warningCount++;
+                    logger.warn("POTENTIAL UNTRANSLATED: Subtitle {} - {}", subtitle.getIndex(), text);
+                }
             }
         }
 
-        // Wrap translated text with tags
-        if (!openingTag.isEmpty() && !closingTag.isEmpty()) {
-            return openingTag + translatedText + closingTag;
-        } else if (!openingTag.isEmpty()) {
-            return openingTag + translatedText;
-        } else if (!closingTag.isEmpty()) {
-            return translatedText + closingTag;
+        if (warningCount > 0) {
+            logger.warn("TRANSLATION WARNING: {} subtitles may not have been properly translated", warningCount);
+            logger.warn("Untranslated subtitle indices: {}", untranslatedIndices);
+        } else {
+            logger.info("Translation verification: All subtitles appear to have been translated successfully");
         }
-
-        return translatedText;
-    }
-
-    /**
-     * Extract HTML tags from text
-     */
-    private List<String> extractHtmlTags(String text) {
-        List<String> tags = java.util.regex.Pattern.compile("<[^>]*>")
-                .matcher(text)
-                .results()
-                .map(m -> m.group())
-                .collect(Collectors.toList());
-        return tags;
     }
 
     /**

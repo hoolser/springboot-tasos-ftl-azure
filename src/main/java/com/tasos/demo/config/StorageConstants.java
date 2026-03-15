@@ -28,7 +28,20 @@ public final class StorageConstants {
      */
     public static final long MAX_SRT_FILE_SIZE_BYTES = MAX_SRT_FILE_SIZE_MB * 1024 * 1024;
 
-    // ================== Container Names (Logical) ==================
+    // ================== Translation Configuration ==================
+
+    /**
+     * Batch size for SRT translation using DeepL API.
+     * Groups this many subtitles together for batch translation to provide
+     * context for improved gender agreement and grammar in Greek.
+     *
+     * Optimal value = 6:
+     * - Captures typical scene dialogue (4-6 lines per scene)
+     * - Provides good context for DeepL without diluting with unrelated dialogue
+     * - Well under API limits
+     * - No performance penalty vs smaller batches
+     */
+    public static final int SRT_TRANSLATION_BATCH_SIZE = 6;
 
     /**
      * Container name for shared blob storage.
