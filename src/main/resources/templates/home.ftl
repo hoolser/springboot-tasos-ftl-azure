@@ -7,7 +7,7 @@
 </head>
 <body>
 <div class="centered-message">
-    <h1>Welcome to the Spring Boot Demo!</h1>
+    <h1>Welcome to the Spring Boot Demo of Tasos!</h1>
     <p>${message}</p>
     <div class="home-buttons">
         <a href="/storage-blob-page">
