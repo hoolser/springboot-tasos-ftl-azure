@@ -2,7 +2,7 @@ package com.tasos.demo.service.impl;
 
 import com.deepl.api.TextResult;
 import com.deepl.api.Translator;
-import com.deepl.api.QuotaExceededException;
+import com.deepl.api.TextTranslationOptions;
 import com.tasos.demo.config.StorageConstants;
 import com.tasos.demo.model.SrtSubtitle;
 import com.tasos.demo.service.SrtTranslationService;
@@ -18,6 +18,7 @@ import java.io.InputStreamReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Service
 public class SrtTranslationServiceImpl implements SrtTranslationService {
@@ -131,24 +132,43 @@ public class SrtTranslationServiceImpl implements SrtTranslationService {
 
                 // Build XML-formatted content for this batch
                 String batchXml = buildXmlBatch(batch);
-                logger.debug("Built XML batch, sending to DeepL...");
+                logger.info("Built XML batch ({} characters total), sending to DeepL...", batchXml.length());
 
                 try {
-                    // Translate the batch with XML formatting
+                    // Create translation options with proper tag handling to optimize quota usage
+                    // tag_handling="xml": Tells DeepL to recognize and NOT translate XML syntax
+                    // ignore_tags: Tells DeepL NOT to translate or bill for these metadata tags
+                    // Only the content inside <text> tags will be translated and billed
+                    java.util.List<String> ignoreTags = java.util.Arrays.asList("index", "timecode", "originalText");
+
+                    TextTranslationOptions options = new TextTranslationOptions()
+                            .setTagHandling("xml")
+                            .setIgnoreTags(ignoreTags);
+
+                    logger.info("DeepL translation options configured:");
+                    logger.info("  - Tag handling: xml");
+                    logger.info("  - Ignore tags: index, timecode, originalText");
+                    logger.info("  - This means: ONLY <text> content will be charged against your quota");
+
+                    // Translate the batch with XML formatting and optimized parameters
                     TextResult result = getTranslator().translateText(
                             batchXml,
                             "EN",
-                            "EL"
+                            "EL",
+                            options
                     );
 
                     String translatedBatch = result.getText();
-                    logger.debug("Batch translation result received ({} characters)", translatedBatch.length());
+                    logger.info("Batch translation result received ({} characters)", translatedBatch.length());
+                    logger.debug("Translated XML response (first 1000 chars):\n{}",
+                            translatedBatch.length() > 1000 ?
+                            translatedBatch.substring(0, 1000) + "\n...[truncated]" :
+                            translatedBatch);
 
                     // Parse translated batch and update subtitles
                     updateSubtitlesFromXmlBatch(batch, translatedBatch);
 
                     logger.info("Batch {}/{} completed successfully", batchNumber, totalBatches);
-
                 } catch (com.deepl.api.QuotaExceededException e) {
                     logger.error("DeepL API Quota exceeded: {}", e.getMessage());
                     throw new RuntimeException("DeepL API quota exceeded for this billing period. Please try again next billing cycle.", e);
@@ -159,6 +179,9 @@ public class SrtTranslationServiceImpl implements SrtTranslationService {
                     Thread.currentThread().interrupt();
                     logger.error("Translation interrupted for batch {}/{}", batchNumber, totalBatches);
                     throw new RuntimeException("Translation interrupted for batch " + batchNumber, e);
+                } catch (Exception e){
+                    logger.error("Error during batch translation: {}", e.getMessage(), e);
+                    throw new RuntimeException("Translation failed for batch " + batchNumber + ": " + e.getMessage(), e);
                 }
             }
 
@@ -174,20 +197,29 @@ public class SrtTranslationServiceImpl implements SrtTranslationService {
      * Build XML-formatted content from subtitles for batch translation.
      * This format helps DeepL understand the context and structure.
      *
+     * IMPORTANT: This method creates XML that will be sent to DeepL with tag_handling="xml"
+     * and ignore_tags="index,timecode,originalText" to minimize API character consumption.
+     *
      * Strategy:
      * 1. Extract HTML tags from text and store them separately
      * 2. Send only the clean text to DeepL (minimize API usage)
      * 3. Restore tags in the translated output
+     * 4. Metadata (index, timecode, originalText) will NOT be counted toward quota
+     * 5. Only content in <text> tags will be billed
      */
     private String buildXmlBatch(List<SrtSubtitle> subtitles) {
         StringBuilder xml = new StringBuilder();
         xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
         xml.append("<subtitles>\n");
 
+        int totalCleanCharacters = 0;  // Track characters that will be billed
+
         for (SrtSubtitle subtitle : subtitles) {
             // Extract HTML tags and get clean text
             String originalText = subtitle.getText();
             String cleanText = SrtParser.removeHtmlTags(originalText);
+
+            totalCleanCharacters += cleanText.length();
 
             // Wrap each subtitle in XML tags for structure
             // Send only clean text without HTML tags to DeepL
@@ -200,7 +232,20 @@ public class SrtTranslationServiceImpl implements SrtTranslationService {
         }
 
         xml.append("</subtitles>");
-        return xml.toString();
+        String xmlOutput = xml.toString();
+
+        // DETAILED LOGGING - Show exactly what we're sending to DeepL
+        logger.info("=== DEEPL API REQUEST DETAILS ===");
+        logger.info("Total subtitles in batch: {}", subtitles.size());
+        logger.debug("Total characters that WILL BE BILLED (in <text> tags only): {}", totalCleanCharacters);
+        logger.info("Total XML payload size (including tags): {} characters", xmlOutput.length());
+        logger.debug("Billing optimization: Using tag_handling='xml' + ignore_tags='index,timecode,originalText'");
+        logger.info("Expected characters to be charged: ~{} (only content in <text> tags)", totalCleanCharacters);
+        logger.debug("--- EXACT XML PAYLOAD BEING SENT ---");
+        logger.debug(xmlOutput);
+        logger.debug("--- END XML PAYLOAD ---");
+
+        return xmlOutput;
     }
 
     /**
