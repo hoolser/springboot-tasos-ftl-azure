@@ -7,9 +7,10 @@ public interface SrtTranslationService {
     /**
      * Translate an SRT file from English to Greek
      * @param file the SRT file to translate
+     * @param provider the translation provider (deepl or azure)
      * @return the translated SRT content as a string
      */
-    String translateSrtFileEnToEl(MultipartFile file) throws Exception;
+    String translateSrtFileEnToEl(MultipartFile file, String provider) throws Exception;
 
     /**
      * Check if file size is within limits
@@ -23,5 +24,9 @@ public interface SrtTranslationService {
      */
     long getMaxFileSizeBytes();
 
-}
+    /**
+     * Get active translation provider (deepl or azure)
+     */
+    String getActiveProvider();
 
+}

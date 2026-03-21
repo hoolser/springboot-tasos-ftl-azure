@@ -41,7 +41,20 @@ public final class StorageConstants {
      * - Well under API limits
      * - No performance penalty vs smaller batches
      */
-    public static final int SRT_TRANSLATION_BATCH_SIZE = 6;
+    public static final int SRT_TRANSLATION_BATCH_SIZE_DEEPL = 6;
+
+    /**
+     * Batch size for SRT translation using Azure Translator API.
+     * Groups this many subtitles together to minimize API requests and avoid rate limits.
+     *
+     * Optimal value = 50:
+     * - Azure supports up to 100 items per request
+     * - Larger batches = fewer requests = avoid 429 rate limit errors
+     * - Reduces character count per second (respects rate limits)
+     * - Azure charges per character, not per request (cost-efficient)
+     * - Still provides reasonable context for translation quality
+     */
+    public static final int SRT_TRANSLATION_BATCH_SIZE_AZURE = 50;
 
     /**
      * Container name for shared blob storage.

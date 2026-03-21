@@ -327,17 +327,31 @@
   <div class="srt-header">
     <h1>🎬 SRT Subtitle Translation</h1>
     <p>English (EN) → Greek (EL) Translation</p>
-    <p>Powered by DeepL API</p>
+    <p>Powered by <span id="translationProvider">DEEPL</span> API</p>
   </div>
 
   <div class="info-box">
     <strong>Instructions:</strong>
     <ul style="margin: 10px 0; padding-left: 20px;">
       <li>Upload an SRT subtitle file (English subtitles)</li>
-      <li>The file will be translated to Greek using DeepL</li>
+      <li>The file will be translated to Greek using the selected provider</li>
       <li>HTML tags (like &lt;i&gt;, &lt;b&gt;) are preserved</li>
       <li>Maximum file size: <span id="maxFileSize">50</span> MB</li>
     </ul>
+  </div>
+
+  <div class="provider-selection" style="background-color: white; padding: 15px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #ddd;">
+      <h3 style="margin-top: 0; color: #2c3e50; font-size: 16px; margin-bottom: 10px;">Translation Provider</h3>
+      <div class="radio-group" style="display: flex; gap: 20px;">
+          <label style="cursor: pointer; display: flex; align-items: center;">
+              <input type="radio" name="provider" value="deepl" checked style="margin-right: 8px;">
+              <strong>DeepL</strong>
+          </label>
+          <label style="cursor: pointer; display: flex; align-items: center;">
+              <input type="radio" name="provider" value="azure" style="margin-right: 8px;">
+              <strong>Azure Translator</strong>
+          </label>
+      </div>
   </div>
 
   <!-- Upload Section -->
@@ -469,6 +483,8 @@
       return;
     }
 
+    const provider = document.querySelector('input[name="provider"]:checked').value;
+
     const formData = new FormData();
     formData.append('file', selectedFile);
 
@@ -486,7 +502,7 @@
     }, 500);
 
     // Send translation request
-    fetch('/api/srt/translation/translateEnToEl', {
+    fetch('/api/srt/translation/translateEnToEl?provider=' + encodeURIComponent(provider), {
       method: 'POST',
       body: formData
     })
@@ -563,6 +579,25 @@
     });
   }
 
+  function loadActiveProvider() {
+    fetch('/api/srt/translation/provider')
+    .then(response => response.text())
+    .then(data => {
+      const match = data.match(/:\s*(\w+)/);
+      if (match) {
+        const providerName = match[1].toLowerCase();
+        document.getElementById('translationProvider').textContent = providerName.toUpperCase();
+
+        // Update radio button selection
+        const radio = document.querySelector('input[name="provider"][value="' + providerName + '"]');
+        if (radio) {
+            radio.checked = true;
+        }
+      }
+    })
+    .catch(error => console.error('Error loading translation provider:', error));
+  }
+
   function displayTranslationsList(data) {
     const listSection = document.getElementById('translationsListSection');
     const list = document.getElementById('translationsList');
@@ -614,6 +649,7 @@
     })
     .catch(error => console.error('Error loading max file size:', error));
 
+    loadActiveProvider();
     refreshTranslationsList();
   });
 </script>

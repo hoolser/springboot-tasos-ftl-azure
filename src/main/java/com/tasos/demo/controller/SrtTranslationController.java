@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,7 +40,9 @@ public class SrtTranslationController {
      * Translate SRT file from English to Greek and save to shared container
      */
     @PostMapping("/translateEnToEl")
-    public ResponseEntity<String> translateSrtEnToEl(@RequestPart("file") MultipartFile file) {
+    public ResponseEntity<String> translateSrtEnToEl(
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(value = "provider", required = false) String provider) {
         logger.info("Received SRT file for translation: {}", file.getOriginalFilename());
 
         try {
@@ -63,8 +66,8 @@ public class SrtTranslationController {
             }
 
             // Translate the SRT file
-            logger.info("Starting translation process for file: {}", originalFilename);
-            String translatedSrtContent = srtTranslationService.translateSrtFileEnToEl(file);
+            logger.info("Starting translation process for file: {} using provider: {}", originalFilename, provider);
+            String translatedSrtContent = srtTranslationService.translateSrtFileEnToEl(file, provider);
 
             // Generate output filename with timestamp
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern(StorageConstants.FILE_TIMESTAMP_FORMAT));
@@ -161,6 +164,12 @@ public class SrtTranslationController {
         return ResponseEntity.ok("Maximum file size: " + maxMb + " MB");
     }
 
+    @GetMapping("/provider")
+    public ResponseEntity<String> getTranslationProvider() {
+        String provider = srtTranslationService.getActiveProvider();
+        return ResponseEntity.ok("Active translation provider: " + provider.toUpperCase());
+    }
+
     /**
      * Save translated SRT content to shared container
      */
@@ -222,4 +231,3 @@ public class SrtTranslationController {
         logger.info("File upload result: {}", result);
     }
 }
-
